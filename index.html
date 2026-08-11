@@ -355,6 +355,14 @@ const SECTION_SUB = {};
 const HEAD_LINKS = {};
 
 const $ = id => document.getElementById(id);
+const DEFAULTS = { proxy: 'https://notion-proxy.djsa9pro.workers.dev', db: '3b9fa2ca-2310-812f-a6a1-d74fde611068', flagDb: '', token: '', retry: true, dark: false, orderMode: 'fewest' };
+let cfg = Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem('cfg') || '{}'));
+function applyDark() { document.documentElement.classList.toggle('dark', cfg.dark); }
+function saveSettings() { cfg.token=$('setToken').value.trim(); cfg.proxy=$('setProxy').value.trim().replace(/\/$/,''); cfg.db=$('setDb').value.trim(); cfg.retry=$('setRetry').checked; cfg.orderMode=$('setOrder').value; cfg.dark=$('setDark').checked; localStorage.setItem('cfg',JSON.stringify(cfg)); applyDark(); }
+function fillSettings() { $('setToken').value=cfg.token; $('setProxy').value=cfg.proxy; $('setDb').value=cfg.db; $('setRetry').checked=cfg.retry; $('setOrder').value=cfg.orderMode; $('setDark').checked=cfg.dark; }
+function showTab(name) { for (const t of ['quiz','pillar','stats','range','settings']) $('view-'+t).classList.toggle('hidden',t!==name); document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('bg-white/25',b.dataset.tab===name)); if(name==='pillar')renderPillarStart(); if(name==='stats')renderStats(); if(name==='range')renderRange(); if(name==='settings')fillSettings(); }
+document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+applyDark();
 function daysToExam() { return Math.max(0, Math.ceil((EXAM_DATE - new Date()) / 86400000)); }
 $('daysLeft').textContent = daysToExam();
 $('appVer').textContent = APP_VER;
