@@ -21,10 +21,17 @@
   .mask-wrong { color: #ef4444; font-weight: 700; padding: 0 2px; }
   .clause { background: rgba(250,204,21,.22); border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
   .dark .clause { background: rgba(250,204,21,.16); }
-  .bodyhead { color: #4f46e5; font-weight: 700; }
-  .dark .bodyhead { color: #a5b4fc; }
-  .subhead { color: #0891b2; font-weight: 600; }
-  .dark .subhead { color: #67e8f9; }
+  /* 消費税法の見出し階層: （１）→①→イ→（イ）→㋑ */
+  .tax-head-1 { color: #4f46e5; font-weight: 800; }
+  .dark .tax-head-1 { color: #a5b4fc; }
+  .tax-head-2 { color: #0891b2; font-weight: 700; }
+  .dark .tax-head-2 { color: #67e8f9; }
+  .tax-head-3 { color: #7c3aed; font-weight: 700; }
+  .dark .tax-head-3 { color: #c4b5fd; }
+  .tax-head-4 { color: #c2410c; font-weight: 700; }
+  .dark .tax-head-4 { color: #fdba74; }
+  .tax-head-5 { color: #be185d; font-weight: 700; }
+  .dark .tax-head-5 { color: #f9a8d4; }
   .answer-reveal { color: #059669; font-weight: 700; }
   .dark .answer-reveal { color: #34d399; }
   .confetti-piece { position: fixed; width: 9px; height: 14px; top: -20px; z-index: 90; pointer-events: none; animation: fall linear forwards; }
@@ -131,12 +138,12 @@
     <div id="pillarStart" class="flex-1 flex flex-col items-center justify-center gap-4 text-center min-h-[55vh]">
       <div class="text-5xl">🏛️</div>
       <div class="text-lg font-bold">柱（構成）想起モード</div>
-      <div class="text-sm text-slate-500 max-w-[300px]">題名を見て、<b>柱〔1〕〔2〕…</b>（必要なら中見出し⑴⑵も）を順番に言えるか練習します。柱を立てる力を鍛えるモードです。</div>
+      <div class="text-sm text-slate-500 max-w-[300px]">題名を見て、<b>大見出し１．２．…</b>と本文の<b>（１）→①→イ→（イ）→㋑</b>を順番に言えるか練習します。</div>
       <div class="w-full max-w-[300px]">
         <div class="text-xs text-slate-400 mb-1">深さ</div>
         <div class="grid grid-cols-2 gap-2">
-          <button id="lvl1" onclick="setPillarLevel(1)" class="py-2.5 rounded-xl font-bold text-sm pressable">柱のみ</button>
-          <button id="lvl2" onclick="setPillarLevel(2)" class="py-2.5 rounded-xl font-bold text-xs pressable">柱＋中見出し⑴⑵</button>
+          <button id="lvl1" onclick="setPillarLevel(1)" class="py-2.5 rounded-xl font-bold text-sm pressable">（１）見出しのみ</button>
+          <button id="lvl2" onclick="setPillarLevel(2)" class="py-2.5 rounded-xl font-bold text-xs pressable">下位見出しまで</button>
         </div>
       </div>
       <div id="pillarDueInfo" class="text-xs text-slate-400"></div>
@@ -155,14 +162,14 @@
         <div class="text-center mb-3">
           <div class="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400" id="pillarSecNo"></div>
           <div class="text-base font-bold mt-1" id="pillarTitlePrompt"></div>
-          <div class="text-xs text-slate-500 mt-1.5">柱（大見出し）を順番に言って、1つずつめくって確認 ・ 全<span id="pillarCount" class="font-bold"></span>柱</div>
+          <div class="text-xs text-slate-500 mt-1.5">見出しを順番に言って、1つずつめくって確認 ・ 全<span id="pillarCount" class="font-bold"></span>見出し</div>
         </div>
         <ol id="pillarList" class="space-y-2 overflow-y-auto flex-1 max-h-[calc(100dvh-340px)]"></ol>
       </div>
       <div class="mt-3 flex flex-col gap-2 sticky bottom-[76px] z-10">
         <div id="pillarRevealRow" class="grid grid-cols-3 gap-2">
           <button id="pillarRevealAllBtn" onclick="pillarRevealAll()" class="py-3 bg-slate-200 dark:bg-slate-700 rounded-2xl font-bold text-sm pressable">全部表示</button>
-          <button id="pillarReveal" onclick="pillarNextHeading()" class="col-span-2 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-bold text-base shadow-lg pressable">次の柱 ▶</button>
+          <button id="pillarReveal" onclick="pillarNextHeading()" class="col-span-2 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-bold text-base shadow-lg pressable">次の見出し ▶</button>
         </div>
         <div id="pillarJudge" class="hidden grid grid-cols-2 gap-3">
           <button onclick="pillarJudgeBtn(false)" class="py-3.5 bg-gradient-to-r from-rose-500 to-red-500 text-white rounded-2xl font-bold text-base shadow-lg pressable">✗ 言えなかった</button>
@@ -279,7 +286,7 @@
     <div class="bg-white dark:bg-slate-900 w-full max-w-[520px] rounded-t-3xl sm:rounded-2xl p-4 max-h-[85dvh] overflow-y-auto">
       <h3 class="font-bold mb-1">➕ 穴を新規追加</h3>
       <div class="text-[11px] text-slate-400 mb-3">問題<span id="addSecLbl"></span> に新しい穴を作成しNotionに登録します</div>
-      <label class="block text-xs text-slate-500 mb-2">大見出し（例: 〔4〕特定非常災害の特例）
+      <label class="block text-xs text-slate-500 mb-2">大見出し（例: ４．特定非常災害の特例）
         <input id="addHeading" type="text" class="mt-1 w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm">
       </label>
       <label class="block text-xs text-slate-500 mb-2">問題文（答える箇所を 〔_〕 にする）
@@ -315,7 +322,7 @@
     <div class="bg-white dark:bg-slate-900 w-full max-w-[520px] rounded-t-3xl sm:rounded-2xl p-4">
       <h3 class="font-bold mb-1">🚩 フラグ（要修正メモ）</h3>
       <div id="flagWhere" class="text-[11px] text-slate-400 mb-2"></div>
-      <textarea id="flagNote" rows="6" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm leading-relaxed" placeholder="例：⑵の後に穴が抜けている／正解は『居所地』が正しい／この穴は不要 など。修正内容を自由に記入"></textarea>
+      <textarea id="flagNote" rows="6" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm leading-relaxed" placeholder="例：（２）の後に穴が抜けている／正解は『居所地』が正しい／この穴は不要 など。修正内容を自由に記入"></textarea>
       <div class="grid grid-cols-2 gap-3 mt-3">
         <button onclick="closeFlag()" class="py-3 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold pressable">キャンセル</button>
         <button onclick="saveFlag()" id="flagSaveBtn" class="py-3 bg-amber-500 text-white rounded-xl font-bold pressable">🚩 フラグ保存</button>
@@ -339,17 +346,98 @@
 
 <script>
 'use strict';
-const APP_VER = 'v58';  // 更新のたびに上げる（キャッシュ確認用）
+const APP_VER = 'v59';  // 更新のたびに上げる（キャッシュ確認用）
 const EXAM_DATE = new Date('2027-08-03T00:00:00');
-// 各題の大見出し〔n〕の構成（穴の有無に関わらず存在する見出し番号）
-const SECTION_STRUCT = {'1-1':['1','2','3'],'1-2':['1'],'1-3':['1'],'1-4':['1']};
-const headNum = c => { const m = (c && c.heading || '').match(/〔\s*(\d+)\s*〕/); return m ? m[1] : '-'; };
-// 各題の柱（大見出し）名称。柱想起モードで使用
+// 消費税法は本文を（１）→①→イ→（イ）→㋑で構成する。
+// 旧・所得税法の〔1〕→⑴の前提を使わない（穴がない見出しの固定検査も行わない）。
+const SECTION_STRUCT = {};
+const TAX_KANA = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+const FULLWIDTH_DIGITS = '０１２３４５６７８９';
+function toFullwidthDigits(v) { return String(v == null ? '' : v).replace(/[0-9]/g, d => FULLWIDTH_DIGITS[+d]); }
+function toHalfwidthDigits(v) { return String(v == null ? '' : v).replace(/[０-９]/g, d => String(FULLWIDTH_DIGITS.indexOf(d))); }
+function topHeadingNumber(h) {
+  const m = String(h || '').match(/^\s*([0-9０-９]+)\s*[．.]/);
+  return m ? +(toHalfwidthDigits(m[1])) : 999;
+}
+function formatTopHead(n) { return toFullwidthDigits(n) + '．'; }
+
+// 行頭だけを見出しとして扱う。本文中の「イ」などを誤検出しないよう、単独カナの後ろには空白等を要求する。
+function taxHeadingLine(line) {
+  const s = String(line || ''); let m;
+  if ((m = s.match(/^([\s　]*)[（(]\s*([0-9０-９]+)\s*[）)]/))) {
+    return { level: 1, mark: '（' + toFullwidthDigits(m[2]) + '）', prefix: m[0], indent: m[1] };
+  }
+  if ((m = s.match(/^([\s　]*)([①-⑳])/))) {
+    return { level: 2, mark: m[2], prefix: m[0], indent: m[1] };
+  }
+  if ((m = s.match(new RegExp('^([\\s　]*)[（(]\\s*([' + TAX_KANA + '])\\s*[）)]')))) {
+    return { level: 4, mark: '（' + m[2] + '）', prefix: m[0], indent: m[1] };
+  }
+  if ((m = s.match(new RegExp('^([\\s　]*)([' + TAX_KANA + '])(?=[\\s　]+|[：:、。．.]|$)')))) {
+    return { level: 3, mark: m[2], prefix: m[0], indent: m[1] };
+  }
+  if ((m = s.match(/^([\s　]*)([㋐-㋾])/))) {
+    return { level: 5, mark: m[2], prefix: m[0], indent: m[1] };
+  }
+  return null;
+}
+function taxHeadingText(line, info) {
+  if (!info) return String(line || '').trim();
+  return (info.indent + info.mark + String(line).slice(info.prefix.length))
+    .trim().replace(/〔_〕|〔●\d+〕/g, '〔●〕').replace(/[☆★]+$/g, '').trim();
+}
+function taxHeadingTrail(question, outerHeading) {
+  const source = String(question || '');
+  const holeAt = source.indexOf('〔_〕');
+  const beforeHole = holeAt < 0 ? source : source.slice(0, holeAt);
+  const levels = [];
+  for (const line of beforeHole.split(/\r?\n/)) {
+    const info = taxHeadingLine(line);
+    if (!info) continue;
+    levels[info.level] = { mark: info.mark, text: taxHeadingText(line, info) };
+    levels.length = info.level + 1;
+  }
+  const path = levels.slice(1).filter(Boolean);
+  const outer = String(outerHeading || '').trim() || '本文';
+  return {
+    key: [outer, ...path.map(x => x.mark)].join(' › '),
+    label: [outer, ...path.map(x => x.text)].join(' › '),
+    short: path.length ? path[path.length - 1].text : outer,
+    path,
+  };
+}
+function headNum(c) { return taxHeadingTrail(c && c.question, c && c.heading).key; }
+function headLabel(c) { return taxHeadingTrail(c && c.question, c && c.heading).label; }
+function headShort(c) { return taxHeadingTrail(c && c.question, c && c.heading).short; }
+function headingKeySort(a, b) {
+  const norm = v => toHalfwidthDigits(v).replace(/[①-⑳]/g, c => String(c.charCodeAt(0) - 0x2460 + 1).padStart(2, '0'))
+    .replace(/[㋐-㋾]/g, c => String(c.charCodeAt(0) - 0x32D0 + 1).padStart(2, '0'));
+  return norm(String(a)).localeCompare(norm(String(b)), 'ja', { numeric: true });
+}
+function knownHeadingsForSection(sec) {
+  const seen = new Map();
+  for (const c of baseCards) {
+    if (c.section !== sec) continue;
+    const h = taxHeadingTrail(c.question, c.heading);
+    if (!seen.has(h.key)) seen.set(h.key, h.label);
+  }
+  return [...seen].map(([key, label]) => ({ key, label }));
+}
+function decorateTaxHeadingLines(raw) {
+  return String(raw || '').split(/\r?\n/).map(line => {
+    const info = taxHeadingLine(line);
+    if (!info) return line;
+    const shown = info.indent + info.mark + line.slice(info.prefix.length);
+    return `‹‹TH${info.level}››${shown}‹‹/TH${info.level}››`;
+  }).join('\n');
+}
+
+// 各題の外側の大見出し。柱想起モードの未読時フォールバックとして使用する。
 const SECTION_HEADINGS = {
   '1-1': [['1', '事業者が国内において行う取引', '★★'], ['2', '輸入取引', '★★'], ['3', '用語の意義', '★★']],
-  '1-2': [['1', '国内取引の判定', '★★']],
-  '1-3': [['1', '非課税', '★★']],
-  '1-4': [['1', '輸出免税等', '★★']],
+  '1-2': [['1', '資産の譲渡又は貸付けの場合', '★★'], ['2', '役務の提供の場合', '★★'], ['3', '特定仕入れ', '★★'], ['4', '利子を対価とする金銭の貸付けその他の行為の場合', '★']],
+  '1-3': [['1', '事業者が国内において行う取引', '★★'], ['2', '輸入取引', '★★']],
+  '1-4': [['1', '内容', '★★'], ['2', '輸出取引等の範囲', '★★'], ['3', '輸出証明', '★'], ['4', '用語の意義', '★']],
 };
 const SECTION_SUB = {};
 const HEAD_LINKS = {};
@@ -369,7 +457,7 @@ if (cfg.db === '3b9fa2ca-2310-812f-a6a1-d74fde611068') {
   appStorage.setItem('cfg', JSON.stringify(cfg));
 }
 function applyDark() { document.documentElement.classList.toggle('dark', cfg.dark); }
-function saveSettings() { cfg.token=$('setToken').value.trim(); cfg.proxy=$('setProxy').value.trim().replace(/\/$/,''); cfg.db=$('setDb').value.trim(); cfg.retry=$('setRetry').checked; cfg.orderMode=$('setOrder').value; cfg.dark=$('setDark').checked; appStorage.setItem('cfg',JSON.stringify(cfg)); applyDark(); }
+function saveSettings() { cfg.token=$('setToken').value.trim(); cfg.proxy=$('setProxy').value.trim().replace(/\/$/,''); cfg.db=$('setDb').value.trim(); cfg.retry=$('setRetry').checked; cfg.orderMode=$('setOrder').value; cfg.dark=$('setDark').checked; resetPillarData(); appStorage.setItem('cfg',JSON.stringify(cfg)); applyDark(); }
 function fillSettings() { $('setToken').value=cfg.token; $('setProxy').value=cfg.proxy; $('setDb').value=cfg.db; $('setRetry').checked=cfg.retry; $('setOrder').value=cfg.orderMode; $('setDark').checked=cfg.dark; }
 function showTab(name) { for (const t of ['quiz','pillar','stats','range','settings']) $('view-'+t).classList.toggle('hidden',t!==name); document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('bg-white/25',b.dataset.tab===name)); if(name==='pillar')renderPillarStart(); if(name==='stats')renderStats(); if(name==='range')renderRange(); if(name==='settings')fillSettings(); }
 document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
@@ -413,9 +501,9 @@ const RANK_STYLE = {
   '準C': 'bg-slate-300 text-slate-700',
 };
 // 複数の題に全く同じ見出しがあるもの（内容が重複しがち→関連リンクで相互参照）
-// 見出し名の正規化（〔n〕・（条文）・★・空白を除去）
+// 見出し名の正規化（１．・（条文）・★・空白を除去）
 function headNameKey(h) {
-  return (h || '').replace(/^〔\s*\d+\s*〕\s*/, '').replace(/（[^）]*）/g, '').replace(/[★\s]/g, '');
+  return (h || '').replace(/^\s*[0-9０-９]+[．.]\s*/, '').replace(/[（(][^）)]*[）)]/g, '').replace(/[★\s]/g, '');
 }
 function renderRelLinks(c) {
   const box = $('relLinks');
@@ -424,14 +512,14 @@ function renderRelLinks(c) {
   if (!links.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
   box.innerHTML = '<span class="text-[11px] text-slate-400">🔗 同じ見出し:</span>' + links.map(x => {
     const [s, n] = x.split(':');
-    return `<button onclick="showRelated('${s}',${n},'${esc(key)}')" class="text-[11px] px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 font-bold pressable">${s}〔${n}〕</button>`;
+    return `<button onclick="showRelated('${s}',${n},'${esc(key)}')" class="text-[11px] px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 font-bold pressable">${s}${formatTopHead(n)}</button>`;
   }).join('');
   box.classList.remove('hidden');
 }
 // 関連題の見出し本文を正解入りで表示
 const _relCache = {};
 async function showRelated(sec, n, key) {
-  $('relWhere').textContent = `${sec}〔${n}〕${key}`;
+  $('relWhere').textContent = `${sec}${formatTopHead(n)}${key}`;
   $('relText').innerHTML = '<span class="text-slate-400">読み込み中...</span>';
   $('relModal').classList.remove('hidden');
   const ck = sec + ':' + n;
@@ -444,7 +532,7 @@ async function showRelated(sec, n, key) {
         const j = await notion(`/v1/databases/${cfg.db}/query`, body);
         res = res.concat(j.results); cursor = j.has_more ? j.next_cursor : undefined;
       } while (cursor);
-      const hs = res.filter(r => (prop(r.properties, '大見出し', 'rich_text') || '').replace(/\s/g, '').startsWith(`〔${n}〕`));
+      const hs = res.filter(r => topHeadingNumber(prop(r.properties, '大見出し', 'rich_text')) === +n);
       if (!hs.length) throw new Error('見出しが見つかりません');
       const ans = {};
       hs.forEach(r => { ans[prop(r.properties, '穴番号', 'number')] = prop(r.properties, '正解', 'rich_text'); });
@@ -483,7 +571,7 @@ let history = JSON.parse(appStorage.getItem('history') || '{}'); // section -> {
 let answerLog = JSON.parse(appStorage.getItem('answerLog') || '[]');
 let statPeriod = 'all'; // all=累計(Notion) / today / 7d
 function logAnswer(c, ok) {
-  answerLog.push({ d: todayStr(), s: c.section, h: headNum(c), ok: ok ? 1 : 0 });
+  answerLog.push({ d: todayStr(), s: c.section, h: headNum(c), l: headLabel(c), ok: ok ? 1 : 0 });
   if (answerLog.length > 6000) answerLog = answerLog.slice(-5000);
   appStorage.setItem('answerLog', JSON.stringify(answerLog));
 }
@@ -500,7 +588,12 @@ function statsFromLog(days) {
     if (cutoff && e.d < cutoff) continue;
     const o = secs[e.s] = secs[e.s] || { ok: 0, ng: 0, title: (SECTION_TITLES[e.s] || ''), heads: {} };
     e.ok ? o.ok++ : o.ng++;
-    const hh = o.heads[e.h] = o.heads[e.h] || { ok: 0, ng: 0 }; e.ok ? hh.ok++ : hh.ng++;
+    // v58以前の「-」は所得税法式の見出し解析に失敗した記録。題合計だけ残し、見出し別には出さない。
+    if (e.h && e.h !== '-') {
+      const hh = o.heads[e.h] = o.heads[e.h] || { ok: 0, ng: 0, label: e.l || '' };
+      if (!hh.label && e.l) hh.label = e.l;
+      e.ok ? hh.ok++ : hh.ng++;
+    }
   }
   return secs;
 }
@@ -655,6 +748,7 @@ async function clearCache() {
     try { await _bgSync; } catch (e) {}
   }
   appStorage.removeItem('quizState');
+  resetPillarData();
   toast('キャッシュを削除しました', 'bg-rose-500');
   showTab('quiz');
   loadCards(true);
@@ -794,8 +888,8 @@ function orderSectionCards(scards) {
   const byHead = {};
   for (const c of scards) (byHead[c.heading] = byHead[c.heading] || []).push(c);
   const heads = Object.keys(byHead).sort((a, b) => {
-    const na = +((a.match(/〔(\d+)〕/) || [])[1] || 999), nb = +((b.match(/〔(\d+)〕/) || [])[1] || 999);
-    return na - nb;
+    const na = topHeadingNumber(a), nb = topHeadingNumber(b);
+    return na - nb || String(a).localeCompare(String(b), 'ja');
   });
   let out = [];
   for (const h of heads) out = out.concat(orderHeadingCards(byHead[h]));
@@ -843,7 +937,8 @@ function renderCard() {
   let hOk = 0, hTot = 0;
   hcs.forEach(x => { hOk += (x.correct || 0); hTot += (x.total || 0); });
   const hRate = hTot ? Math.round(hOk / hTot * 100) : null;
-  $('qHeading').innerHTML = esc(c.heading) + (hRate == null ? '' :
+  const hTrail = taxHeadingTrail(c.question, c.heading);
+  $('qHeading').innerHTML = esc(hTrail.label) + (hRate == null ? '' :
     ` <b class="${hRate >= 90 ? 'text-emerald-500' : hRate >= 70 ? 'text-amber-500' : 'text-rose-500'}">見出し${hRate}%</b><span class="opacity-70">(${hTot}回)</span>`);
   $('wrongBadge').classList.toggle('hidden', !wrongMap[c.id]);
   updateWeakToggle();
@@ -852,11 +947,9 @@ function renderCard() {
 
   // 見出し単位の本文をそのまま表示（題全体の連結はしない＝文章が崩れない）
   let raw = c.question;
-  // 先頭の見出し行〔n〕…に色を付ける
-  raw = raw.replace(/^(〔\d+〕[^\n]*)/, '‹‹HD››$1‹‹/HD››');
-  // 小見出し ⑴⑵…（条文番号付き）に色を付け、改行が無ければ追加
-  raw = raw.replace(/([⑴-⒇][^（）\n]{0,28}（[^）]*[法令措則条通規][^）]*）)(\n?)/g,
-    (m, h, nl) => '‹‹SH››' + h + '‹‹/SH››' + (nl || '\n'));
+  // 消費税法の階層を行単位で強調する: （１）→①→イ→（イ）→㋑。
+  // 表記揺れの半角括弧・半角数字は、画面上では全角の（１）に統一する。
+  raw = decorateTaxHeadingLines(raw);
   // 出題穴の直前の読点（、。改行）から穴までを文脈ハイライト（文脈理解のため）
   const hi = raw.indexOf('〔_〕');
   if (hi >= 0) {
@@ -870,8 +963,8 @@ function renderCard() {
   // 出題穴と伏せ字を同じ3文字幅に統一（問題が進んでも本文がズレない）
   const curCls = wrongMap[c.id] ? 'hole-wrong' : 'hole';
   $('qText').innerHTML = esc(raw)
-    .split('‹‹HD››').join('<span class="bodyhead">').split('‹‹/HD››').join('</span>')
-    .split('‹‹SH››').join('<span class="subhead">').split('‹‹/SH››').join('</span>')
+    .replace(/‹‹TH([1-5])››/g, (m, level) => `<span class="tax-head-${level}">`)
+    .replace(/‹‹\/TH[1-5]››/g, '</span>')
     .split('‹‹CL››').join('<span class="clause">').split('‹‹/CL››').join('</span>')
     .replace(/〔_〕/g, `<span class="${curCls} blink">〔？〕</span>`)
     .replace(/〔●(\d+)〕/g, (m, n) => {
@@ -1099,13 +1192,14 @@ function judge(ok) {
   const r = sm2(c, ok);
   const st = sessionResults[c.section] = sessionResults[c.section] || { ok: 0, ng: 0, title: c.title };
   ok ? st.ok++ : st.ng++;
-  // 累計履歴（分析用）。見出し〔n〕ごとにも集計
+  // 累計履歴（分析用）。消費税法の本文見出し階層ごとにも集計
   const h = history[c.section] = history[c.section] || { ok: 0, ng: 0, title: c.title, heads: {} };
   if (!h.heads) h.heads = {};
   if (!inWrongReview) {
     ok ? h.ok++ : h.ng++; h.title = c.title;
     const hn = headNum(c);
-    const hh = h.heads[hn] = h.heads[hn] || { ok: 0, ng: 0 };
+    const hh = h.heads[hn] = h.heads[hn] || { ok: 0, ng: 0, label: headLabel(c) };
+    if (!hh.label) hh.label = headLabel(c);
     ok ? hh.ok++ : hh.ng++;
     appStorage.setItem('history', JSON.stringify(history));
     logAnswer(c, ok);
@@ -1220,21 +1314,38 @@ function endScoped() {
   if (ret) ret(); else continueNextSection();
 }
 
-// ── 修復フラグ（穴のない見出しの検出） ──
+// ── 修復フラグ ──
 function renderRepairBanner(c) {
-  const b = $('repairBanner');
-  const all = SECTION_STRUCT[c.section] || [];
-  const present = new Set(baseCards.filter(x => x.section === c.section).map(x => headNum(x)));
-  const missing = all.filter(n => !present.has(n));
-  if (missing.length === 0) { b.classList.add('hidden'); return; }
-  b.classList.remove('hidden');
-  b.innerHTML = `🔧 穴のない見出し: ${missing.map(n => '〔' + n + '〕').join('')}
-    <button onclick="openAdd()" class="ml-auto px-2 py-0.5 rounded bg-amber-500 text-white pressable">穴を追加</button>`;
+  // 消費税法は5階層で、公開範囲の変更ごとに見出し数も変わる。
+  // 旧・所得税法用の固定配列で「穴がない」と誤表示しない。
+  $('repairBanner').classList.add('hidden');
 }
 
 // ── フラグ（穴抜け・要修正箇所をNotionに記録して後でClaudeが穴生成） ──
 let notionFlags = [];   // Notionフラグ（未対応）のキャッシュ
 let fullStats = JSON.parse(appStorage.getItem('fullStats') || 'null'); // Notion全題集計（累計・端末共通）
+// v58以前は〔n〕専用のため、消費税法の見出し別データが「-」に潰れていた。
+// 正しい階層には復元できないので、誤った見出しバケットと手動弱点マークだけを除外する。
+function dropLegacyHeadingBuckets() {
+  let historyChanged = false, fullChanged = false, logChanged = false, weakChanged = false;
+  for (const h of Object.values(history)) {
+    if (h && h.heads && Object.prototype.hasOwnProperty.call(h.heads, '-')) { delete h.heads['-']; historyChanged = true; }
+  }
+  if (fullStats && fullStats.secs) {
+    for (const h of Object.values(fullStats.secs)) {
+      if (h && h.heads && Object.prototype.hasOwnProperty.call(h.heads, '-')) { delete h.heads['-']; fullChanged = true; }
+    }
+  }
+  const freshLog = answerLog.filter(e => e && e.h !== '-');
+  if (freshLog.length !== answerLog.length) { answerLog = freshLog; logChanged = true; }
+  const freshWeak = weakMarks.filter(k => !String(k).endsWith('|-'));
+  if (freshWeak.length !== weakMarks.length) { weakMarks = freshWeak; weakChanged = true; }
+  if (historyChanged) appStorage.setItem('history', JSON.stringify(history));
+  if (fullChanged) appStorage.setItem('fullStats', JSON.stringify(fullStats));
+  if (logChanged) appStorage.setItem('answerLog', JSON.stringify(answerLog));
+  if (weakChanged) appStorage.setItem('weakMarks', JSON.stringify(weakMarks));
+}
+dropLegacyHeadingBuckets();
 
 // Notionの全穴から累計正答率を集計（端末を跨いで共通、リセットされない）
 async function aggregateAllFromNotion() {
@@ -1251,15 +1362,18 @@ async function aggregateAllFromNotion() {
     const secs = {};
     for (const p of res) {
       const s = prop(p.properties, '題番号', 'rich_text');
-      if (!s) continue;
+      if (!ALL_SECTIONS.includes(s)) continue;
       const correct = prop(p.properties, '正答回数', 'number');
       const total = prop(p.properties, '出題回数', 'number');
       const heading = prop(p.properties, '大見出し', 'rich_text');
       const title = prop(p.properties, '題名', 'rich_text');
-      const n = (heading.match(/〔(\d+)〕/) || [])[1] || '-';
+      const question = prop(p.properties, '問題文', 'rich_text');
+      const hi = taxHeadingTrail(question, heading);
+      const n = hi.key;
       const o = secs[s] = secs[s] || { ok: 0, ng: 0, title, heads: {} };
       o.ok += correct; o.ng += (total - correct); o.title = title;
-      const hh = o.heads[n] = o.heads[n] || { ok: 0, ng: 0 };
+      const hh = o.heads[n] = o.heads[n] || { ok: 0, ng: 0, label: hi.label };
+      if (!hh.label) hh.label = hi.label;
       hh.ok += correct; hh.ng += (total - correct);
     }
     fullStats = { ts: Date.now(), secs };
@@ -1356,8 +1470,8 @@ function skipHeading() {
   let n = 0;
   while (queueIdx < cards.length &&
          cards[queueIdx].section === c.section &&
-         cards[queueIdx].heading === c.heading) { queueIdx++; n++; }
-  toast(`⏩ ${c.heading || '見出し'} を${n}問スキップ`, 'bg-slate-600');
+         headNum(cards[queueIdx]) === headNum(c)) { queueIdx++; n++; }
+  toast(`⏩ ${headShort(c) || '見出し'} を${n}問スキップ`, 'bg-slate-600');
   saveState();
   // 次の見出しが別の題なら、一旦その題の完了画面を挟む
   if (showSecPanels && (queueIdx >= cards.length || cards[queueIdx].section !== c.section)) {
@@ -1897,25 +2011,27 @@ function renderStats() {
         const h = STAT[s], t = h.ok + h.ng, rate = t ? Math.round(h.ok / t * 100) : 0;
         const color = rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-rose-500';
         const heads = h.heads || {};
-        // 穴のない見出しも表示するため、柱構成(SECTION_HEADINGS)の全見出しと回答データの見出しを合算
-        const allHeads = (typeof SECTION_HEADINGS !== 'undefined' && SECTION_HEADINGS[s]) || [];
-        const headName = {}; allHeads.forEach(([n, name]) => headName[n] = name);
-        const hnums = [...new Set([...Object.keys(heads), ...allHeads.map(x => String(x[0]))])]
-          .sort((a, b) => Number(a) - Number(b));
+        // 本文から読んだ階層を使う。（１）→①→イ→（イ）→㋑の表示をそのまま分析にも反映する。
+        const headName = {};
+        for (const x of knownHeadingsForSection(s)) headName[x.key] = x.label;
+        for (const [key, value] of Object.entries(heads)) if (value && value.label) headName[key] = value.label;
+        const hnums = [...new Set([...Object.keys(heads).filter(n => n !== '-'), ...Object.keys(headName)])]
+          .sort(headingKeySort);
         const sub = hnums.map(n => {
           const hh = heads[n] || { ok: 0, ng: 0 }, ht = hh.ok + hh.ng, hr = ht ? Math.round(hh.ok / ht * 100) : 0;
           const hc = hr >= 80 ? 'bg-emerald-400' : hr >= 50 ? 'bg-amber-400' : 'bg-rose-400';
           const badge = hr < 50 && ht ? '⚠' : '';
-          const nm = headName[n] ? `<span class="text-[10px] text-slate-400 ml-1 truncate">${esc(String(headName[n]).slice(0, 14))}</span>` : '';
+          const label = String(headName[n] || hh.label || n);
+          const shown = label.length > 54 ? label.slice(0, 53) + '…' : label;
           if (ht === 0) {
             return `<div class="flex items-center gap-2 py-0.5 pl-3 opacity-60">
-              <span class="text-[11px] w-8 shrink-0 text-slate-500">〔${n}〕</span>
-              <div class="flex-1 text-[11px] text-slate-400 truncate">${headName[n] ? esc(String(headName[n]).slice(0, 22)) : ''}</div>
+              <span class="text-[11px] w-40 shrink-0 text-slate-500 truncate">${esc(shown)}</span>
+              <div class="flex-1"></div>
               <span class="text-[11px] w-16 text-right text-slate-400">未回答</span>
             </div>`;
           }
           return `<div class="flex items-center gap-2 py-0.5 pl-3">
-            <span class="text-[11px] w-8 shrink-0 text-slate-500">〔${n}〕${nm}</span>
+            <span class="text-[11px] w-40 shrink-0 text-slate-500 truncate">${esc(shown)}</span>
             <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <div class="h-full ${hc}" style="width:${hr}%"></div>
             </div>
@@ -1956,16 +2072,48 @@ let pillarQueue = [];
 let pillarIdx = 0;
 let pillarSession = { ok: 0, ng: 0 };
 let pillarStep = 0;        // 何項目まで表示したか
-let pillarLevel = +(appStorage.getItem('pillarLevel') || 1); // 1=柱のみ 2=柱+中見出し
-let pillarCurItems = [];   // 現在の題の表示項目（柱・中見出しを平坦化）
-// 柱1本ごとの成績（'題番号|項目キー' -> {c:正答数, t:出題数}）。穴埋めと同じ粒度で記録
+let pillarLevel = +(appStorage.getItem('pillarLevel') || 1); // 1=（１）見出し 2=下位見出しまで
+let pillarCurItems = [];   // 現在の題の表示項目（見出し階層を平坦化）
+// 見出し1本ごとの成績（'題番号|項目キー' -> {c:正答数, t:出題数}）。穴埋めと同じ粒度で記録
 let pillarItemSRS = JSON.parse(appStorage.getItem('pillarItemSRS') || '{}');
-let pillarItemOk = {};     // 現在の題での柱ごとの判定
-let pillarPhase = 'reveal'; // reveal=めくる待ち / judge=柱1本の判定待ち / all=全部表示後の一括判定
+let pillarItemOk = {};     // 現在の題での見出しごとの判定
+let pillarPhase = 'reveal'; // reveal=めくる待ち / judge=見出し1本の判定待ち / all=全部表示後の一括判定
+let pillarCards = [];      // 柱モード専用に全題から取得した本文（当日の出題範囲に依存しない）
+let pillarDataLoaded = false, pillarDataLoading = false, pillarDataError = '';
+let pillarDataEpoch = 0;   // 設定変更後に古いDBの取得結果を採用しないための世代番号
 function pItemKey(sec, key) { return sec + '|' + key; }
 function pItemRate(sec, key) {
   const r = pillarItemSRS[pItemKey(sec, key)];
   return r && r.t ? Math.round(r.c / r.t * 100) : null;
+}
+function resetPillarData() { pillarDataEpoch++; pillarCards = []; pillarDataLoaded = false; pillarDataLoading = false; pillarDataError = ''; }
+async function ensurePillarData() {
+  if (pillarDataLoaded || pillarDataLoading || !cfg.token) return pillarDataLoaded;
+  pillarDataLoading = true; pillarDataError = '';
+  const epoch = pillarDataEpoch;
+  try {
+    let res = [], cursor, page = 0;
+    do {
+      const body = { page_size: 100, sorts: [{ property: '穴ID', direction: 'ascending' }] };
+      if (cursor) body.start_cursor = cursor;
+      const j = await notion(`/v1/databases/${cfg.db}/query`, body);
+      if (epoch !== pillarDataEpoch) return false;
+      res = res.concat(j.results); cursor = j.has_more ? j.next_cursor : undefined;
+    } while (cursor && ++page < 200);
+    if (epoch !== pillarDataEpoch) return false;
+    pillarCards = res.map(r => ({
+      section: prop(r.properties, '題番号', 'rich_text'),
+      heading: prop(r.properties, '大見出し', 'rich_text'),
+      question: prop(r.properties, '問題文', 'rich_text'),
+      holeNum: prop(r.properties, '穴番号', 'number'),
+    })).filter(c => ALL_SECTIONS.includes(c.section) && c.question);
+    pillarDataLoaded = true;
+  } catch (e) {
+    if (epoch === pillarDataEpoch) { pillarCards = []; pillarDataError = e.message || '取得に失敗しました'; }
+  } finally {
+    if (epoch === pillarDataEpoch) { pillarDataLoading = false; renderPillarStart(); }
+  }
+  return pillarDataLoaded;
 }
 
 function setPillarLevel(lv) {
@@ -1979,17 +2127,52 @@ function setPillarLevel(lv) {
 }
 function subMarkChar(m) { return String.fromCharCode(0x2474 + (m - 1)); }
 function pillarOvAll() { return JSON.parse(appStorage.getItem('pillarOv') || '{}'); }
+function taxHeadingItemName(line, info) {
+  const text = taxHeadingText(line, info);
+  return text.slice(info.mark.length).trim() || info.mark;
+}
+function dynamicPillarItemsFor(sec) {
+  const sourceCards = pillarDataLoaded ? pillarCards : baseCards;
+  const source = orderSectionCards(sourceCards.filter(c => c.section === sec));
+  if (!source.length) return [];
+  const seenTemplates = new Set(), seenItems = new Set(), items = [];
+  for (const card of source) {
+    const template = String(card.heading || '') + '\u0000' + String(card.question || '').replace(/〔_〕|〔●\d+〕/g, '〔●〕');
+    if (seenTemplates.has(template)) continue;
+    seenTemplates.add(template);
+    const levels = [];
+    for (const line of String(card.question || '').split(/\r?\n/)) {
+      const info = taxHeadingLine(line);
+      if (!info) continue;
+      levels[info.level] = info.mark;
+      levels.length = info.level + 1;
+      if (pillarLevel === 1 && info.level !== 1) continue;
+      const path = levels.slice(1).filter(Boolean).join('›');
+      const key = 'tax|' + String(card.heading || '') + '|' + path;
+      if (seenItems.has(key)) continue;
+      seenItems.add(key);
+      items.push({
+        type: info.level === 1 ? 'h' : 's', key, n: card.heading || '', outer: String(card.heading || '').trim(), mark: info.mark,
+        depth: info.level, star: (String(line).match(/[☆★]+/) || [''])[0],
+        name: taxHeadingItemName(line, info),
+      });
+    }
+  }
+  return items;
+}
 function pillarItemsFor(sec) {
   const ov = pillarOvAll()[sec] || {};
+  const dynamic = dynamicPillarItemsFor(sec);
+  if (dynamic.length) return dynamic.map(it => Object.assign({}, it, { name: ov[it.key] != null ? ov[it.key] : it.name }));
   const heads = SECTION_HEADINGS[sec] || [];
   const subs = (typeof SECTION_SUB !== 'undefined' && SECTION_SUB[sec]) || {};
   const items = [];
   for (const [n, name, star] of heads) {
-    items.push({ type: 'h', key: 'h' + n, n, star: star || '', name: ov['h' + n] != null ? ov['h' + n] : name });
+    items.push({ type: 'h', key: 'h' + n, n, mark: formatTopHead(n), depth: 1, star: star || '', name: ov['h' + n] != null ? ov['h' + n] : name });
     if (pillarLevel >= 2) {
       for (const [m, sname] of (subs[n] || [])) {
         const k = 's' + n + '_' + m;
-        items.push({ type: 's', key: k, n, m, name: ov[k] != null ? ov[k] : sname });
+        items.push({ type: 's', key: k, n, m, mark: subMarkChar(m), depth: 2, name: ov[k] != null ? ov[k] : sname });
       }
     }
   }
@@ -2013,6 +2196,15 @@ function renderPillarStart() {
   $('pillarDone').classList.add('hidden'); $('pillarDone').classList.remove('flex');
   $('pillarStart').classList.remove('hidden'); $('pillarStart').classList.add('flex');
   setPillarLevel(pillarLevel);
+  const info = $('pillarDueInfo');
+  // 当日の出題カードではなく、全題の本文から見出し階層を作る。
+  if (!pillarDataLoaded && cfg.token) {
+    if (!pillarDataLoading && !pillarDataError) ensurePillarData();
+    info.innerHTML = pillarDataError
+      ? `⚠ 本文見出しの取得に失敗しました。開始ボタンで再試行できます。<br><span class="opacity-70">${esc(pillarDataError)}</span>`
+      : '本文見出し（（１）→①→イ→（イ）→㋑）を読み込み中…';
+    return;
+  }
   const scope = pillarScope(), due = pillarDueList();
   const studied = scope.filter(s => pillarSRS[s] && pillarSRS[s].total > 0).length;
   // 柱ごとの成績から、言えなかったことが多い柱を集計
@@ -2023,20 +2215,25 @@ function renderPillarStart() {
       if (!r || !r.t) continue;
       ptot += r.t; pok += r.c;
       const rate = r.c / r.t;
-      if (rate < 0.9) weak.push({ s, n: it.n, name: it.name, rate, t: r.t });
+      if (rate < 0.9) weak.push({ s, mark: it.mark || formatTopHead(it.n), name: it.name, rate, t: r.t });
     }
   }
   weak.sort((a, b) => a.rate - b.rate);
-  const info = $('pillarDueInfo');
   info.innerHTML = `範囲 ${scope.length}題中 ／ 今日の復習対象 ${due.length}題 ／ 学習済み ${studied}題`
     + (ptot ? `<br><span class="text-[11px]">柱の正答率 <b>${Math.round(pok / ptot * 100)}%</b>（${ptot}回）</span>` : '')
     + (weak.length ? `<div class="mt-2 text-left text-[11px] text-slate-500 dark:text-slate-400">
         <div class="font-bold mb-0.5 text-rose-500">⚡ 言えていない柱（90%未満）${weak.length}本</div>
-        ${weak.slice(0, 8).map(w => `<div class="truncate">・${w.s}〔${w.n}〕${esc(String(w.name).slice(0, 16))} <b class="${w.rate < 0.7 ? 'text-rose-500' : 'text-amber-500'}">${Math.round(w.rate * 100)}%</b>(${w.t})</div>`).join('')}
+        ${weak.slice(0, 8).map(w => `<div class="truncate">・${w.s} ${esc(w.mark || '')}${esc(String(w.name).slice(0, 16))} <b class="${w.rate < 0.7 ? 'text-rose-500' : 'text-amber-500'}">${Math.round(w.rate * 100)}%</b>(${w.t})</div>`).join('')}
         ${weak.length > 8 ? `<div class="opacity-70">ほか${weak.length - 8}本</div>` : ''}
       </div>` : '');
 }
 function startPillar(all) {
+  if (cfg.token && !pillarDataLoaded) {
+    if (pillarDataError) pillarDataError = '';
+    ensurePillarData();
+    toast('本文見出しを読み込み中です…', 'bg-indigo-500');
+    return;
+  }
   const list = all ? pillarScope() : pillarDueList();
   if (list.length === 0) { toast('今日の復習対象はありません 👏（「範囲内すべて」で練習可）', 'bg-emerald-600'); return; }
   // 題番号順をシャッフル
@@ -2075,23 +2272,30 @@ function pillarRender() {
 }
 function pillarAppendItem(it, idx) {
   const sec = pillarQueue[pillarIdx];
-  const isSub = it.type === 's';
+  const depth = it.depth || (it.type === 's' ? 2 : 1);
+  const isSub = depth > 1;
   const li = document.createElement('li');
   li.id = 'pitem' + idx;
-  li.className = 'pop flex gap-2 leading-relaxed items-start ' + (isSub ? 'text-[14px] pl-5' : 'text-[15px] font-bold');
-  const mark = isSub ? subMarkChar(it.m) : '〔' + it.n + '〕';
+  li.className = 'pop leading-relaxed ' + (isSub ? 'text-[14px] pl-5' : 'text-[15px] font-bold');
+  if (depth > 2) li.style.paddingLeft = (depth * 10) + 'px';
+  const mark = it.mark || (isSub ? subMarkChar(it.m) : formatTopHead(it.n));
   const rate = pItemRate(sec, it.key);
   const rcls = rate == null ? '' : rate >= 90 ? 'text-emerald-500' : rate >= 70 ? 'text-amber-500' : 'text-rose-500';
+  const prev = pillarCurItems[idx - 1];
+  const showOuter = !!it.outer && (!prev || prev.outer !== it.outer);
   li.innerHTML =
-    `<span class="${isSub ? 'text-slate-400' : 'text-indigo-600 dark:text-indigo-400'} shrink-0">${mark}</span>` +
-    `<span class="flex-1">${esc(it.name)}${it.star ? `<span class="text-amber-500 ml-1 text-[12px]">${it.star}</span>` : ''}</span>` +
-    (rate == null ? '' : `<span class="text-[10px] ${rcls} shrink-0 font-bold">${rate}%</span>`) +
-    `<span class="pjudge text-[13px] shrink-0 w-3.5 text-center"></span>` +
-    `<span class="text-[11px] text-slate-300 shrink-0">✎</span>`;
+    (showOuter ? `<div class="text-[11px] text-indigo-500 dark:text-indigo-300 font-bold mt-2 mb-0.5">${esc(it.outer)}</div>` : '') +
+    `<div class="flex gap-2 items-start">` +
+      `<span class="${isSub ? 'text-slate-400' : 'text-indigo-600 dark:text-indigo-400'} shrink-0">${mark}</span>` +
+      `<span class="flex-1">${esc(it.name)}${it.star ? `<span class="text-amber-500 ml-1 text-[12px]">${it.star}</span>` : ''}</span>` +
+      (rate == null ? '' : `<span class="text-[10px] ${rcls} shrink-0 font-bold">${rate}%</span>`) +
+      `<span class="pjudge text-[13px] shrink-0 w-3.5 text-center"></span>` +
+      `<span class="text-[11px] text-slate-300 shrink-0">✎</span>` +
+    `</div>`;
   li.onclick = () => editPillarItem(sec, it.key, it.name);
   const list = $('pillarList');
   list.appendChild(li);
-  list.scrollTop = list.scrollHeight;   // めくった柱が必ず見えるように最下部へ追従
+  list.scrollTop = list.scrollHeight;   // めくった見出しが必ず見えるように最下部へ追従
 }
 function pillarRenderList() {
   $('pillarList').innerHTML = '';
@@ -2101,7 +2305,7 @@ function pillarRenderList() {
     if (it.key in pillarItemOk) pillarMarkItem(i, pillarItemOk[it.key]);
   }
 }
-// 柱1本をめくって、その柱の判定待ちにする
+// 見出し1本をめくって、その判定待ちにする
 function pillarNextHeading() {
   if (pillarStep >= pillarCurItems.length) return;
   pillarAppendItem(pillarCurItems[pillarStep], pillarStep);
@@ -2110,7 +2314,7 @@ function pillarNextHeading() {
   $('pillarRevealRow').classList.add('hidden');
   $('pillarJudge').classList.remove('hidden');
   const hint = $('pillarJudgeHint');
-  hint.textContent = `この柱を言えましたか？（${pillarStep}/${pillarCurItems.length}）`;
+  hint.textContent = `この見出しを言えましたか？（${pillarStep}/${pillarCurItems.length}）`;
   hint.classList.remove('hidden');
 }
 // 残りを全部表示して、題全体で一括判定（柱ごとの記録は付かない）
@@ -2164,7 +2368,7 @@ function pillarGradeItem(ok) {
 }
 // 解答しながらタイトルを訂正（この端末に保存）
 function editPillarItem(sec, key, cur) {
-  const v = prompt('柱・中見出しのタイトルを修正', cur);
+  const v = prompt('見出しのタイトルを修正', cur);
   if (v === null) return;
   const all = pillarOvAll();
   (all[sec] = all[sec] || {})[key] = v.trim();
