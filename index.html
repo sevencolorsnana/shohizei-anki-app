@@ -1,0 +1,2320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#4f46e5">
+<title>消費税法 理論暗記</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { darkMode: 'class' };</script>
+<style>
+  :root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
+  body { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; touch-action: manipulation; }
+  button, label, a { touch-action: manipulation; }
+  .blink { animation: blink 1.2s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: 0.35; } }
+  .hole { color: #4f46e5; font-weight: 700; background: rgba(99,102,241,.1); border-radius: 4px; padding: 0 2px; }
+  .dark .hole { color: #a5b4fc; background: rgba(99,102,241,.2); }
+  .hole-wrong { color: #dc2626; font-weight: 700; background: rgba(239,68,68,.12); border-radius: 4px; padding: 0 2px; }
+  .dark .hole-wrong { color: #fca5a5; background: rgba(239,68,68,.22); }
+  .mask { color: #94a3b8; padding: 0 2px; }
+  .mask-wrong { color: #ef4444; font-weight: 700; padding: 0 2px; }
+  .clause { background: rgba(250,204,21,.22); border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .dark .clause { background: rgba(250,204,21,.16); }
+  .bodyhead { color: #4f46e5; font-weight: 700; }
+  .dark .bodyhead { color: #a5b4fc; }
+  .subhead { color: #0891b2; font-weight: 600; }
+  .dark .subhead { color: #67e8f9; }
+  .answer-reveal { color: #059669; font-weight: 700; }
+  .dark .answer-reveal { color: #34d399; }
+  .confetti-piece { position: fixed; width: 9px; height: 14px; top: -20px; z-index: 90; pointer-events: none; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(720deg); } }
+  .card-in { animation: cardIn .28s cubic-bezier(.2,.9,.3,1.2); }
+  @keyframes cardIn { from { opacity: 0; transform: translateX(28px) scale(.98); } to { opacity: 1; transform: none; } }
+  .pop { animation: pop .3s cubic-bezier(.2,.9,.3,1.4); }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+  .pressable { transition: transform .08s, filter .15s; }
+  .pressable:active { transform: scale(.96); filter: brightness(.92); }
+  #qScroll::-webkit-scrollbar { width: 4px; }
+  #qScroll::-webkit-scrollbar-thumb { background: rgba(148,163,184,.4); border-radius: 4px; }
+</style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
+<div class="mx-auto max-w-[520px] min-h-[100dvh] flex flex-col">
+
+  <!-- 固定ヘッダー -->
+  <header class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[520px] z-40
+                 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-white shadow-lg">
+    <div class="px-4 pt-2.5 pb-2 flex items-center justify-between">
+      <div class="leading-tight">
+        <div class="text-[11px] opacity-80">消費税法 理論暗記 <span id="appVer" class="opacity-60"></span></div>
+        <div class="text-sm font-bold">試験まで <span id="daysLeft">--</span>日
+          <span class="ml-2 text-[11px] font-normal opacity-90">🔥<span id="streak">0</span>連続</span>
+        </div>
+      </div>
+      <nav class="flex gap-1 text-[13px]">
+        <button data-tab="quiz" class="tabbtn px-2.5 py-1.5 rounded-lg pressable">穴</button>
+        <button data-tab="pillar" class="tabbtn px-2.5 py-1.5 rounded-lg pressable">柱</button>
+        <button data-tab="stats" class="tabbtn px-2.5 py-1.5 rounded-lg pressable">分析</button>
+        <button data-tab="range" class="tabbtn px-2.5 py-1.5 rounded-lg pressable">範囲</button>
+        <button data-tab="settings" class="tabbtn px-2.5 py-1.5 rounded-lg pressable">⚙</button>
+      </nav>
+    </div>
+    <div class="h-1.5 bg-black/20">
+      <div id="progressBar" class="h-full bg-gradient-to-r from-amber-300 to-emerald-300 transition-all duration-300" style="width:0%"></div>
+    </div>
+  </header>
+  <div class="h-[62px]"></div>
+
+  <!-- 出題タブ -->
+  <main id="view-quiz" class="flex-1 px-3 pb-[150px] pt-2 flex flex-col">
+    <div id="loadingBox" class="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500 min-h-[50vh]">
+      <div class="animate-spin w-10 h-10 border-4 border-indigo-400 border-t-transparent rounded-full"></div>
+      <div id="loadingMsg" class="text-sm">読み込み中...</div>
+      <button id="loadBtn" onclick="loadCards(true)" class="hidden px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold pressable">データを読み込む</button>
+      <button id="weakStartBtn" onclick="loadWeakness()" class="hidden px-5 py-2.5 bg-gradient-to-r from-rose-500 to-pink-600 text-white rounded-xl text-sm font-bold pressable">🎯 弱点克服モード</button>
+    </div>
+
+    <div id="quizBox" class="hidden flex-1 flex-col">
+      <div id="qCard" class="bg-white dark:bg-slate-900 rounded-2xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 p-4 flex-1 flex flex-col">
+        <div class="flex items-center gap-1.5 flex-wrap mb-1.5">
+          <span id="qSection" class="text-[11px] font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full"></span>
+          <span id="qRank" class="text-[11px] text-amber-500 font-bold"></span>
+          <span id="qHole" class="text-[11px] text-slate-400"></span>
+          <span id="wrongBadge" class="hidden text-[11px] font-bold bg-rose-500 text-white px-2 py-0.5 rounded-full pop">前回不正解</span>
+          <button id="weakToggle" onclick="toggleWeak()" class="ml-auto text-[11px] px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 pressable">🎯</button>
+          <button onclick="flagSpot()" class="text-[11px] px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 pressable">🚩</button>
+          <button onclick="openEdit()" class="text-[11px] px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 pressable">✏️</button>
+        </div>
+        <div class="flex items-center gap-2 mb-1.5">
+          <button onclick="skipHeading()" class="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 pressable">⏩ 次の見出し</button>
+          <button onclick="skipSection()" class="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 pressable">⏭ 次の題</button>
+        </div>
+        <div id="qTitle" class="text-sm font-bold mb-0.5"></div>
+        <div id="qHeading" class="text-[11px] text-slate-400 mb-2"></div>
+        <div id="relLinks" class="hidden mb-2 flex items-center gap-1.5 flex-wrap"></div>
+        <div id="repairBanner" class="hidden mb-2 p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-[11px] text-amber-700 dark:text-amber-300 flex items-center gap-2"></div>
+        <div id="qScroll" class="overflow-y-auto max-h-[calc(100dvh-330px)]">
+          <div id="qText" class="text-[15px] leading-[1.9] whitespace-pre-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 題完了の選択パネル -->
+    <div id="secDoneBox" class="hidden flex-1 flex-col items-center justify-center gap-4 text-center min-h-[50vh]">
+      <div class="text-5xl pop">✅</div>
+      <div class="text-lg font-bold">問題<span id="secDoneId"></span> 完了！</div>
+      <div id="secDoneStats" class="text-sm text-slate-500"></div>
+      <div class="flex flex-col gap-3 w-full max-w-[300px]">
+        <button id="secReviewWrong" onclick="reviewSectionWrong()" class="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl font-bold shadow-lg pressable">😤 間違えた箇所だけ復習</button>
+        <button onclick="reviewSectionAll()" class="px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-bold shadow-lg pressable">🔁 この題をすべて復習</button>
+        <button id="continueBtn" onclick="continueNextSection()" class="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg pressable">➡️ 次の題へ進む</button>
+      </div>
+    </div>
+
+    <div id="doneBox" class="hidden flex-1 flex-col items-center justify-center gap-4 text-center min-h-[50vh]">
+      <div class="text-6xl pop">🎉</div>
+      <div class="text-xl font-bold">今日の分は完了！</div>
+      <div id="doneStats" class="text-sm text-slate-500"></div>
+      <div class="flex flex-col gap-3 w-full max-w-[300px]">
+        <button id="reviewWrongBtn" onclick="startWrongReview()" class="hidden px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl font-bold shadow-lg pressable">😤 不正解だけ即時復習</button>
+        <button onclick="reviewAllToday()" class="px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-bold shadow-lg pressable">🔁 今日の分を再度復習</button>
+        <button onclick="loadWeakness()" class="px-6 py-3 bg-gradient-to-r from-rose-500 to-pink-600 text-white rounded-2xl font-bold shadow-lg pressable">🎯 弱点克服モード</button>
+        <button onclick="loadCards(true)" class="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg pressable">🔄 再取得</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 柱（構成）想起タブ -->
+  <main id="view-pillar" class="hidden flex-1 px-3 pb-28 pt-2 flex flex-col">
+    <!-- 開始画面 -->
+    <div id="pillarStart" class="flex-1 flex flex-col items-center justify-center gap-4 text-center min-h-[55vh]">
+      <div class="text-5xl">🏛️</div>
+      <div class="text-lg font-bold">柱（構成）想起モード</div>
+      <div class="text-sm text-slate-500 max-w-[300px]">題名を見て、<b>柱〔1〕〔2〕…</b>（必要なら中見出し⑴⑵も）を順番に言えるか練習します。柱を立てる力を鍛えるモードです。</div>
+      <div class="w-full max-w-[300px]">
+        <div class="text-xs text-slate-400 mb-1">深さ</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="lvl1" onclick="setPillarLevel(1)" class="py-2.5 rounded-xl font-bold text-sm pressable">柱のみ</button>
+          <button id="lvl2" onclick="setPillarLevel(2)" class="py-2.5 rounded-xl font-bold text-xs pressable">柱＋中見出し⑴⑵</button>
+        </div>
+      </div>
+      <div id="pillarDueInfo" class="text-xs text-slate-400"></div>
+      <div class="flex flex-col gap-3 w-full max-w-[300px]">
+        <button onclick="startPillar(false)" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-bold shadow-lg pressable">▶️ 今日の復習を開始</button>
+        <button onclick="startPillar(true)" class="px-6 py-3 bg-slate-200 dark:bg-slate-700 rounded-2xl font-bold pressable">📚 範囲内すべてを練習</button>
+      </div>
+    </div>
+    <!-- ドリルカード -->
+    <div id="pillarCard" class="hidden flex-1 flex-col">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 p-4 flex-1 flex flex-col">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-[11px] text-slate-400">進捗 <span id="pillarProg">0/0</span></span>
+          <span id="pillarDueBadge" class="text-[11px] font-bold bg-rose-500 text-white px-2 py-0.5 rounded-full"></span>
+        </div>
+        <div class="text-center mb-3">
+          <div class="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400" id="pillarSecNo"></div>
+          <div class="text-base font-bold mt-1" id="pillarTitlePrompt"></div>
+          <div class="text-xs text-slate-500 mt-1.5">柱（大見出し）を順番に言って、1つずつめくって確認 ・ 全<span id="pillarCount" class="font-bold"></span>柱</div>
+        </div>
+        <ol id="pillarList" class="space-y-2 overflow-y-auto flex-1 max-h-[calc(100dvh-340px)]"></ol>
+      </div>
+      <div class="mt-3 flex flex-col gap-2 sticky bottom-[76px] z-10">
+        <div id="pillarRevealRow" class="grid grid-cols-3 gap-2">
+          <button id="pillarRevealAllBtn" onclick="pillarRevealAll()" class="py-3 bg-slate-200 dark:bg-slate-700 rounded-2xl font-bold text-sm pressable">全部表示</button>
+          <button id="pillarReveal" onclick="pillarNextHeading()" class="col-span-2 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-bold text-base shadow-lg pressable">次の柱 ▶</button>
+        </div>
+        <div id="pillarJudge" class="hidden grid grid-cols-2 gap-3">
+          <button onclick="pillarJudgeBtn(false)" class="py-3.5 bg-gradient-to-r from-rose-500 to-red-500 text-white rounded-2xl font-bold text-base shadow-lg pressable">✗ 言えなかった</button>
+          <button onclick="pillarJudgeBtn(true)" class="py-3.5 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-2xl font-bold text-base shadow-lg pressable">✓ 言えた</button>
+        </div>
+        <div id="pillarJudgeHint" class="hidden text-center text-[11px] text-slate-400"></div>
+      </div>
+    </div>
+    <!-- 完了画面 -->
+    <div id="pillarDone" class="hidden flex-1 flex-col items-center justify-center gap-4 text-center min-h-[55vh]">
+      <div class="text-6xl pop">🏛️</div>
+      <div class="text-xl font-bold">柱の復習完了！</div>
+      <div id="pillarDoneStats" class="text-sm text-slate-500"></div>
+      <div class="flex flex-col gap-3 w-full max-w-[300px]">
+        <button id="pillarRetryWrong" onclick="pillarRetryWrong()" class="hidden px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl font-bold shadow-lg pressable">😤 間違えた題だけ復習</button>
+        <button onclick="pillarRepeat()" class="px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-bold shadow-lg pressable">🔁 もう一度同じ範囲を復習</button>
+        <button onclick="pillarBackStart()" class="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg pressable">↩ 戻る</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 分析タブ -->
+  <main id="view-stats" class="hidden flex-1 px-3 pb-28 pt-2 space-y-3"></main>
+
+  <!-- 範囲タブ -->
+  <main id="view-range" class="hidden flex-1 px-3 pb-28 pt-2">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-4">
+      <h2 class="font-bold mb-3">出題範囲</h2>
+      <div class="flex gap-2 mb-3 flex-wrap">
+        <button onclick="rangeAll(true)" class="px-3 py-1.5 text-xs bg-slate-200 dark:bg-slate-700 rounded-lg pressable">全選択</button>
+        <button onclick="rangeAll(false)" class="px-3 py-1.5 text-xs bg-slate-200 dark:bg-slate-700 rounded-lg pressable">全解除</button>
+        <button onclick="savePreset()" class="px-3 py-1.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-lg pressable">＋プリセット保存</button>
+      </div>
+      <div id="rankFilter" class="flex gap-1.5 mb-3 flex-wrap items-center"></div>
+      <div id="presetList" class="flex gap-2 mb-3 flex-wrap"></div>
+      <div id="rangeList" class="text-sm max-h-[55vh] overflow-y-auto"></div>
+      <button onclick="applyRange()" class="mt-4 w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-bold shadow pressable">この範囲で出題</button>
+    </div>
+  </main>
+
+  <!-- 設定タブ -->
+  <main id="view-settings" class="hidden flex-1 px-3 pb-28 pt-2">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-4 space-y-4 text-sm">
+      <h2 class="font-bold">設定</h2>
+      <label class="block">Notionトークン
+        <input id="setToken" type="password" class="mt-1 w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+      </label>
+      <label class="block">プロキシURL
+        <input id="setProxy" type="text" class="mt-1 w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+      </label>
+      <label class="block">データベースID
+        <input id="setDb" type="text" class="mt-1 w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+      </label>
+      <label class="flex items-center justify-between">終了後に不正解を即時復習
+        <input id="setRetry" type="checkbox" class="w-5 h-5 accent-indigo-600" checked>
+      </label>
+      <label class="block">出題順（題の並び）
+        <select id="setOrder" class="mt-1 w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+          <option value="fewest">回答数が少ない順（既定）</option>
+          <option value="lowrate">正答率が低い順</option>
+          <option value="random">ランダム</option>
+          <option value="sequential">題番号順</option>
+        </select>
+      </label>
+      <label class="flex items-center justify-between">ダークモード
+        <input id="setDark" type="checkbox" class="w-5 h-5 accent-indigo-600">
+      </label>
+      <button onclick="saveSettings()" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold pressable">保存</button>
+      <div id="saveMsg" class="text-center text-emerald-600 text-xs h-4"></div>
+      <button onclick="clearCache()" class="w-full py-2 text-xs text-rose-500 underline">キャッシュを削除して全件再取得</button>
+    </div>
+    <div id="settingsFlags" class="mt-3"></div>
+  </main>
+
+  <!-- 固定フッター（採点ボタン） -->
+  <footer id="footerBar" class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[520px] z-40
+                 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-t border-slate-200 dark:border-slate-800
+                 px-3 pt-2.5" style="padding-bottom: calc(10px + var(--safe-bottom));">
+    <div class="flex items-center justify-center mb-1.5">
+      <button id="undoBtn" onclick="undo()" class="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 pressable mr-3" disabled>↩ 戻る</button>
+      <span class="text-[11px] text-slate-400">進捗 <span id="progressText">0/0</span></span>
+    </div>
+    <button id="revealBtn" onclick="reveal()" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-bold text-base shadow-lg pressable">👀 正解を確認する</button>
+    <div id="judgeBtns" class="hidden grid grid-cols-2 gap-3">
+      <button onclick="judge(false)" class="py-3.5 bg-gradient-to-r from-rose-500 to-red-500 text-white rounded-2xl font-bold text-base shadow-lg pressable">✗ 不正解</button>
+      <button onclick="judge(true)" class="py-3.5 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-2xl font-bold text-base shadow-lg pressable">✓ 正解</button>
+    </div>
+  </footer>
+
+  <!-- 修正モーダル -->
+  <div id="editModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onclick="if(event.target===this)closeEdit()">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-[520px] rounded-t-3xl sm:rounded-2xl p-4 max-h-[85dvh] overflow-y-auto">
+      <h3 class="font-bold mb-3">✏️ 問題を修正 <span id="editId" class="text-xs text-slate-400"></span></h3>
+      <label class="block text-xs text-slate-500 mb-2">問題文（〔_〕=出題穴、〔●n〕=他の穴）
+        <textarea id="editQ" rows="8" class="mt-1 w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm leading-relaxed"></textarea>
+      </label>
+      <label class="block text-xs text-slate-500 mb-3">正解
+        <textarea id="editA" rows="2" class="mt-1 w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm"></textarea>
+      </label>
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="closeEdit()" class="py-3 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold pressable">キャンセル</button>
+        <button onclick="saveEdit()" id="editSaveBtn" class="py-3 bg-indigo-600 text-white rounded-xl font-bold pressable">保存</button>
+      </div>
+      <div id="editMsg" class="text-center text-xs mt-2 h-4"></div>
+      <div class="flex gap-3 mt-2">
+        <button onclick="openHoleSel()" class="flex-1 py-2 text-xs text-indigo-500 underline">✂️ 選択して穴を追加・統合</button>
+        <button onclick="deleteHole()" class="flex-1 py-2 text-xs text-rose-500 underline">🗑 この穴を削除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 穴の新規追加モーダル -->
+  <div id="addModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onclick="if(event.target===this)closeAdd()">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-[520px] rounded-t-3xl sm:rounded-2xl p-4 max-h-[85dvh] overflow-y-auto">
+      <h3 class="font-bold mb-1">➕ 穴を新規追加</h3>
+      <div class="text-[11px] text-slate-400 mb-3">問題<span id="addSecLbl"></span> に新しい穴を作成しNotionに登録します</div>
+      <label class="block text-xs text-slate-500 mb-2">大見出し（例: 〔4〕特定非常災害の特例）
+        <input id="addHeading" type="text" class="mt-1 w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm">
+      </label>
+      <label class="block text-xs text-slate-500 mb-2">問題文（答える箇所を 〔_〕 にする）
+        <textarea id="addQ" rows="6" class="mt-1 w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm leading-relaxed" placeholder="…の規定は、〔_〕に限り適用する。"></textarea>
+      </label>
+      <label class="block text-xs text-slate-500 mb-3">正解
+        <textarea id="addA" rows="2" class="mt-1 w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm"></textarea>
+      </label>
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="closeAdd()" class="py-3 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold pressable">キャンセル</button>
+        <button onclick="saveAdd()" id="addSaveBtn" class="py-3 bg-indigo-600 text-white rounded-xl font-bold pressable">追加</button>
+      </div>
+      <div id="addMsg" class="text-center text-xs mt-2 h-4"></div>
+    </div>
+  </div>
+
+  <!-- 穴の選択追加・統合モーダル -->
+  <div id="holeSelModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onclick="if(event.target===this)closeHoleSel()">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-[520px] rounded-t-3xl sm:rounded-2xl p-4 max-h-[88dvh] overflow-y-auto">
+      <h3 class="font-bold mb-1">✂️ 穴を追加・統合 <span id="holeSelWhere" class="text-[11px] text-slate-400"></span></h3>
+      <div class="text-[11px] text-slate-400 mb-2">本文から穴にしたい箇所を選択して下のボタンを押します。<b>既存の穴（黄色）を含めて選ぶと1つに統合</b>されます。</div>
+      <div id="holeSelText" class="p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[15px] leading-[1.9] max-h-[50dvh] overflow-y-auto select-text"></div>
+      <div class="grid grid-cols-2 gap-3 mt-3">
+        <button onclick="closeHoleSel()" class="py-3 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold pressable">キャンセル</button>
+        <button onclick="applyHoleSelection()" id="holeSelBtn" class="py-3 bg-indigo-600 text-white rounded-xl font-bold pressable">選択を穴にする</button>
+      </div>
+      <div id="holeSelMsg" class="text-center text-xs mt-2 h-4"></div>
+    </div>
+  </div>
+
+  <!-- フラグ入力モーダル -->
+  <div id="flagModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onclick="if(event.target===this)closeFlag()">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-[520px] rounded-t-3xl sm:rounded-2xl p-4">
+      <h3 class="font-bold mb-1">🚩 フラグ（要修正メモ）</h3>
+      <div id="flagWhere" class="text-[11px] text-slate-400 mb-2"></div>
+      <textarea id="flagNote" rows="6" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm leading-relaxed" placeholder="例：⑵の後に穴が抜けている／正解は『居所地』が正しい／この穴は不要 など。修正内容を自由に記入"></textarea>
+      <div class="grid grid-cols-2 gap-3 mt-3">
+        <button onclick="closeFlag()" class="py-3 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold pressable">キャンセル</button>
+        <button onclick="saveFlag()" id="flagSaveBtn" class="py-3 bg-amber-500 text-white rounded-xl font-bold pressable">🚩 フラグ保存</button>
+      </div>
+      <div id="flagMsg" class="text-center text-xs mt-2 h-4"></div>
+    </div>
+  </div>
+
+  <!-- 同一見出し（関連題）表示モーダル -->
+  <div id="relModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onclick="if(event.target===this)closeRel()">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-[520px] rounded-t-3xl sm:rounded-2xl p-4 max-h-[88dvh] overflow-y-auto">
+      <h3 class="font-bold mb-1">🔗 同じ見出しの題 <span id="relWhere" class="text-[11px] text-slate-400"></span></h3>
+      <div class="text-[11px] text-slate-400 mb-2">穴は<b class="text-emerald-600">正解を埋めた状態</b>で表示します。関連づけて暗記しましょう。</div>
+      <div id="relText" class="p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[14px] leading-[1.9] whitespace-pre-wrap max-h-[62dvh] overflow-y-auto"></div>
+      <button onclick="closeRel()" class="mt-3 w-full py-3 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold pressable">閉じる</button>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden fixed top-[70px] left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg pop"></div>
+</div>
+
+<script>
+'use strict';
+const APP_VER = 'v52';  // 更新のたびに上げる（キャッシュ確認用）
+const EXAM_DATE = new Date('2027-08-03T00:00:00');
+// 各題の大見出し〔n〕の構成（穴の有無に関わらず存在する見出し番号）
+const SECTION_STRUCT = {'1-1':['1','2','3'],'1-2':['1'],'1-3':['1'],'1-4':['1']};
+const headNum = c => { const m = (c && c.heading || '').match(/〔\s*(\d+)\s*〕/); return m ? m[1] : '-'; };
+// 各題の柱（大見出し）名称。柱想起モードで使用
+const SECTION_HEADINGS = {
+  '1-1': [['1', '事業者が国内において行う取引', '★★'], ['2', '輸入取引', '★★'], ['3', '用語の意義', '★★']],
+  '1-2': [['1', '国内取引の判定', '★★']],
+  '1-3': [['1', '非課税', '★★']],
+  '1-4': [['1', '輸出免税等', '★★']],
+};
+const SECTION_SUB = {};
+const HEAD_LINKS = {};
+
+function daysToExam() { return Math.max(0, Math.ceil((EXAM_DATE - new Date()) / 86400000)); }
+$('daysLeft').textContent = daysToExam();
+$('appVer').textContent = APP_VER;
+
+// ── Notion API ──
+async function notion(path, payload, method = 'POST') {
+  const res = await fetch(cfg.proxy + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.token, 'Notion-Version': '2022-06-28' },
+    body: payload ? JSON.stringify(payload) : undefined,
+  });
+  if (!res.ok) throw new Error('API ' + res.status + ': ' + (await res.text()).slice(0, 150));
+  return res.json();
+}
+function prop(p, name, type) {
+  const v = p[name];
+  if (!v) return type === 'number' ? 0 : '';
+  if (type === 'title') return (v.title || []).map(x => x.plain_text).join('');
+  if (type === 'rich_text') return (v.rich_text || []).map(x => x.plain_text).join('');
+  if (type === 'number') return v.number ?? 0;
+  if (type === 'select') return v.select ? v.select.name : '';
+  return '';
+}
+
+// ── 状態 ──
+let cards = [];
+let baseCards = [];     // 当日読み込んだ全カード（復習の母集団）
+// 題ごとのランク（理論マスタDB由来。特A > A+ > A > B > C > 準C）
+const SECTION_RANK = { "1-1": "C", "1-3": "A", "2-2": "特A", "2-3": "特A", "2-4": "特A", "2-5": "B", "2-6": "A", "2-7": "準C", "2-8": "特A", "2-9": "特A", "2-10": "A+", "2-11": "A", "2-13": "特A", "2-14": "特A", "2-15": "B", "2-16": "C", "2-18": "A", "2-19": "特A", "2-20": "C", "2-21": "特A", "2-22": "A+", "2-23": "A", "2-24": "準C", "2-25": "A", "2-27": "B", "2-28": "準C", "3-2": "C", "3-3": "特A", "3-4": "A+", "3-5": "A+", "3-6": "A", "3-7": "A", "3-8": "特A", "4-1": "特A", "4-2": "A", "5-1": "B", "5-2": "C", "5-3": "B", "5-4": "B", "5-6": "特A", "5-7": "特A", "6-1": "A", "6-2": "特A", "6-3": "特A", "6-4": "B", "6-6": "C", "6-7": "A+", "6-8": "B", "6-9": "特A", "7-2": "特A", "7-3": "特A", "7-4": "特A", "7-5": "B", "8-1": "C", "8-2": "特A", "9-1": "準C", "9-2": "C" };
+const RANK_STYLE = {
+  '特A': 'bg-rose-600 text-white',
+  'A+': 'bg-orange-500 text-white',
+  'A': 'bg-amber-500 text-white',
+  'B': 'bg-sky-600 text-white',
+  'C': 'bg-slate-400 text-white',
+  '準C': 'bg-slate-300 text-slate-700',
+};
+// 複数の題に全く同じ見出しがあるもの（内容が重複しがち→関連リンクで相互参照）
+// 見出し名の正規化（〔n〕・（条文）・★・空白を除去）
+function headNameKey(h) {
+  return (h || '').replace(/^〔\s*\d+\s*〕\s*/, '').replace(/（[^）]*）/g, '').replace(/[★\s]/g, '');
+}
+function renderRelLinks(c) {
+  const box = $('relLinks');
+  const key = headNameKey(c.heading);
+  const links = (HEAD_LINKS[key] || []).filter(x => x.split(':')[0] !== c.section);
+  if (!links.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  box.innerHTML = '<span class="text-[11px] text-slate-400">🔗 同じ見出し:</span>' + links.map(x => {
+    const [s, n] = x.split(':');
+    return `<button onclick="showRelated('${s}',${n},'${esc(key)}')" class="text-[11px] px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 font-bold pressable">${s}〔${n}〕</button>`;
+  }).join('');
+  box.classList.remove('hidden');
+}
+// 関連題の見出し本文を正解入りで表示
+const _relCache = {};
+async function showRelated(sec, n, key) {
+  $('relWhere').textContent = `${sec}〔${n}〕${key}`;
+  $('relText').innerHTML = '<span class="text-slate-400">読み込み中...</span>';
+  $('relModal').classList.remove('hidden');
+  const ck = sec + ':' + n;
+  try {
+    if (!_relCache[ck]) {
+      let res = [], cursor;
+      do {
+        const body = { page_size: 100, filter: { property: '題番号', rich_text: { equals: sec } } };
+        if (cursor) body.start_cursor = cursor;
+        const j = await notion(`/v1/databases/${cfg.db}/query`, body);
+        res = res.concat(j.results); cursor = j.has_more ? j.next_cursor : undefined;
+      } while (cursor);
+      const hs = res.filter(r => (prop(r.properties, '大見出し', 'rich_text') || '').replace(/\s/g, '').startsWith(`〔${n}〕`));
+      if (!hs.length) throw new Error('見出しが見つかりません');
+      const ans = {};
+      hs.forEach(r => { ans[prop(r.properties, '穴番号', 'number')] = prop(r.properties, '正解', 'rich_text'); });
+      // 全マーカー版テンプレ（最長のものを採用）
+      let tmpl = '';
+      for (const r of hs) {
+        const num = prop(r.properties, '穴番号', 'number');
+        const t = (prop(r.properties, '問題文', 'rich_text') || '').replace('〔_〕', `〔●${num}〕`);
+        if (t.length > tmpl.length) tmpl = t;
+      }
+      _relCache[ck] = { tmpl, ans };
+    }
+    const { tmpl, ans } = _relCache[ck];
+    const html = esc(tmpl.replace(/〔●(\d+)〕/g, (m, k) => `‹A›${ans[k] != null ? ans[k] : '？'}‹/A›`))
+      .split('‹A›').join('<b class="text-emerald-600 dark:text-emerald-400 border-b border-emerald-400">')
+      .split('‹/A›').join('</b>');
+    $('relText').innerHTML = html;
+  } catch (e) {
+    $('relText').innerHTML = `<span class="text-rose-500">読み込み失敗: ${esc(e.message)}</span>`;
+  }
+}
+function closeRel() { $('relModal').classList.add('hidden'); }
+function mergeRank() {}  // 後方互換（ランクは静的マップに変更）
+function rankBadge(sec, cls) {
+  const r = SECTION_RANK[sec];
+  if (!r) return '';
+  const st = RANK_STYLE[r] || 'bg-slate-400 text-white';
+  return `<span class="inline-block px-1.5 rounded ${st} ${cls || 'text-[10px]'} font-bold ml-1 align-middle">${r}</span>`;
+}
+let queueIdx = 0;
+let sessionResults = {};
+let wrongCards = [];
+let wrongMap = JSON.parse(localStorage.getItem('wrongMap') || '{}');
+let history = JSON.parse(localStorage.getItem('history') || '{}'); // section -> {ok, ng, title, heads:{n:{ok,ng}}}
+// 日付つき回答ログ（本日/過去N日の正答率算出用。端末ローカル）
+let answerLog = JSON.parse(localStorage.getItem('answerLog') || '[]');
+let statPeriod = 'all'; // all=累計(Notion) / today / 7d
+function logAnswer(c, ok) {
+  answerLog.push({ d: todayStr(), s: c.section, h: headNum(c), ok: ok ? 1 : 0 });
+  if (answerLog.length > 6000) answerLog = answerLog.slice(-5000);
+  localStorage.setItem('answerLog', JSON.stringify(answerLog));
+}
+function unlogAnswer(c) {
+  for (let i = answerLog.length - 1; i >= 0; i--) { if (answerLog[i].s === c.section && answerLog[i].h === headNum(c)) { answerLog.splice(i, 1); break; } }
+  localStorage.setItem('answerLog', JSON.stringify(answerLog));
+}
+function statsFromLog(days) {
+  const secs = {};
+  let cutoff = null;
+  if (days) { const d = new Date(); d.setDate(d.getDate() - (days - 1)); cutoff = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  for (const e of answerLog) {
+    if (cutoff && e.d < cutoff) continue;
+    const o = secs[e.s] = secs[e.s] || { ok: 0, ng: 0, title: (SECTION_TITLES[e.s] || ''), heads: {} };
+    e.ok ? o.ok++ : o.ng++;
+    const hh = o.heads[e.h] = o.heads[e.h] || { ok: 0, ng: 0 }; e.ok ? hh.ok++ : hh.ng++;
+  }
+  return secs;
+}
+// 過去7日で正答率90%未満の題（＝明確な弱点）を抽出
+function weekWeakSections() {
+  const secs = statsFromLog(7);
+  return Object.keys(secs)
+    .map(s => { const o = secs[s], t = o.ok + o.ng; return { s, t, rate: t ? o.ok / t : 0 }; })
+    .filter(x => x.t > 0 && x.rate < 0.9)
+    .sort((a, b) => a.rate - b.rate);
+}
+// その題だけを範囲にして集中出題
+function loadWeekWeak() {
+  const weak = weekWeakSections();
+  if (!weak.length) { toast('過去7日で90%未満の題はありません 👏', 'bg-emerald-600'); return; }
+  localStorage.setItem('rangeSel', JSON.stringify(weak.map(x => x.s)));
+  localStorage.removeItem('quizState');
+  toast(`⚡ 弱点${weak.length}題を集中出題`, 'bg-rose-500');
+  showTab('quiz');
+  loadCards(true);
+}
+function setStatPeriod(p) { statPeriod = p; renderStats(); }
+let statRangeOnly = false;
+function toggleStatRange() { statRangeOnly = !statRangeOnly; renderStats(); }
+
+// ── 弱点克服モード（見出し単位）──
+const WEAK_RATE = 0.7; // この正答率を下回る見出しは自動で弱点
+let weakMarks = JSON.parse(localStorage.getItem('weakMarks') || '[]'); // 手動マークした見出し ["題|n"]
+function headKey(c) { return c.section + '|' + headNum(c); }
+function isManualWeak(c) { return weakMarks.includes(headKey(c)); }
+function toggleWeak() {
+  const c = cards[queueIdx]; if (!c) return;
+  const k = headKey(c), i = weakMarks.indexOf(k);
+  if (i >= 0) { weakMarks.splice(i, 1); toast('弱点マークを解除', 'bg-slate-600'); }
+  else { weakMarks.push(k); toast('🎯 弱点に追加（見出し単位）', 'bg-rose-500'); }
+  localStorage.setItem('weakMarks', JSON.stringify(weakMarks));
+  updateWeakToggle();
+}
+function updateWeakToggle() {
+  const c = cards[queueIdx]; const b = $('weakToggle'); if (!b) return;
+  const on = c && isManualWeak(c);
+  b.className = 'ml-auto text-[11px] px-2 py-1 rounded-lg pressable ' +
+    (on ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500');
+}
+// 弱点見出しの穴だけを出題（自動: 見出し正答率がしきい値未満 ／ 手動マーク）
+async function loadWeakness(rate = WEAK_RATE) {
+  inWrongReview = false; scoped = false;
+  $('loadingBox').classList.remove('hidden');
+  $('quizBox').classList.add('hidden'); $('quizBox').classList.remove('flex');
+  $('doneBox').classList.add('hidden'); $('doneBox').classList.remove('flex');
+  $('loadBtn').classList.add('hidden'); $('weakStartBtn').classList.add('hidden');
+  const msg = $('loadingMsg');
+  if (!cfg.token) { msg.textContent = '⚙設定タブでNotionトークンを入力してください'; return; }
+  try {
+    const mapCard = r => ({
+      pageId: r.id, id: prop(r.properties, '穴ID', 'title'), section: prop(r.properties, '題番号', 'rich_text'),
+      title: prop(r.properties, '題名', 'rich_text'), heading: prop(r.properties, '大見出し', 'rich_text'),
+      question: prop(r.properties, '問題文', 'rich_text'), answer: prop(r.properties, '正解', 'rich_text'),
+      holeNum: prop(r.properties, '穴番号', 'number'), rank: prop(r.properties, '重要度', 'select'),
+      interval: prop(r.properties, '間隔_日数', 'number') || 1, ef: prop(r.properties, '難易度係数', 'number') || 2.5,
+      correct: prop(r.properties, '正答回数', 'number'), total: prop(r.properties, '出題回数', 'number'),
+    });
+    let res = [], cursor, page = 0;
+    do {
+      const body = { page_size: 100 };
+      if (cursor) body.start_cursor = cursor;
+      const j = await notion(`/v1/databases/${cfg.db}/query`, body);
+      res = res.concat(j.results); cursor = j.has_more ? j.next_cursor : undefined;
+      msg.textContent = `弱点を分析中... ${res.length}件`;
+    } while (cursor && ++page < 120);
+    let all = res.map(mapCard);
+    const sel = selectedSections();
+    if (sel) all = all.filter(c => sel.includes(c.section));
+    // 見出し単位で正答率を集計
+    const agg = {};
+    for (const c of all) {
+      const k = headKey(c); const o = agg[k] = agg[k] || { ok: 0, tot: 0 };
+      o.ok += c.correct; o.tot += c.total;
+    }
+    const weakHead = k => {
+      if (weakMarks.includes(k)) return true;
+      const o = agg[k]; return o && o.tot >= 2 && (o.ok / o.tot) < rate;
+    };
+    let weak = all.filter(c => weakHead(headKey(c)));
+    if (weak.length === 0) {
+      $('loadingBox').classList.add('hidden');
+      cards = []; baseCards = []; showDone();
+      $('doneStats').textContent = `🎯 弱点はありません（見出し正答率${Math.round(rate * 100)}%以上）。お見事です！`;
+      return;
+    }
+    // 題→見出し→本文位置 で整列
+    const bySec = {};
+    for (const c of weak) (bySec[c.section] = bySec[c.section] || []).push(c);
+    cards = [];
+    for (const s of Object.keys(bySec).sort(tidSort)) cards = cards.concat(orderSectionCards(bySec[s]));
+    baseCards = cards.slice(); clearSecTextCache(); mergeRank(baseCards);
+    queueIdx = 0; wrongCards = []; sessionResults = {}; streak = 0;
+    inWrongReview = false; showSecPanels = false; undoStack = []; updateUndoBtn();
+    saveState();
+    $('loadingBox').classList.add('hidden');
+    $('quizBox').classList.remove('hidden'); $('quizBox').classList.add('flex');
+    toast(`🎯 弱点（見出し${Math.round(rate * 100)}%未満）${cards.length}問（${Object.keys(bySec).length}題）`, 'bg-rose-500');
+    renderCard();
+  } catch (e) { msg.textContent = '⚠ ' + e.message; }
+}
+let streak = 0;
+let inWrongReview = false;
+let lastAnsweredSection = null;
+let showSecPanels = true;   // 題境界で完了パネルを出すか（通常・全復習はtrue、不正解のみ復習はfalse）
+// スコープ復習（題単位の復習）。メインキューを退避して一時的に差し替える
+let scoped = false, scopedReturn = null, scopedSaved = null;
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function selectedSections() { return JSON.parse(localStorage.getItem('rangeSel') || 'null'); }
+
+// ── セッションキャッシュ（リロードしても再取得しない） ──
+function saveState() {
+  try {
+    // スコープ復習中はメインキューの退避状態を保存（リロードで主キューに復帰）
+    const main = scoped ? scopedSaved : { cards, queueIdx };
+    localStorage.setItem('quizState', JSON.stringify({
+      date: todayStr(), range: localStorage.getItem('rangeSel') || 'null',
+      cards: main.cards, queueIdx: main.queueIdx, baseCards, sessionResults,
+      wrongIds: wrongCards.map(c => c.id), streak,
+    }));
+  } catch (e) { /* 容量超過時は諦める */ }
+}
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('quizState') || 'null');
+    if (!s || s.date !== todayStr()) return false;
+    if (s.range !== (localStorage.getItem('rangeSel') || 'null')) return false;
+    baseCards = s.baseCards && s.baseCards.length ? s.baseCards : (s.cards || []);
+    // cards は baseCards と「同一オブジェクト」を参照させる（編集が出題キューにも反映されるように）
+    mergeRank(baseCards);
+    const byId = {}; baseCards.forEach(c => byId[c.id] = c);
+    cards = (s.cards || []).map(c => byId[c.id] || c);
+    queueIdx = s.queueIdx; sessionResults = s.sessionResults || {};
+    clearSecTextCache();
+    wrongCards = baseCards.filter(c => (s.wrongIds || []).includes(c.id));
+    scoped = false; inWrongReview = false; showSecPanels = true; streak = s.streak || 0;
+    return cards.length > 0;
+  } catch (e) { return false; }
+}
+async function clearCache() {
+  // 編集・追加のNotion同期が未完了なら待つ（待たずに再取得すると未反映分が元に戻るため）
+  if (_bgPending > 0) {
+    toast('🔄 編集の同期完了を待っています…', 'bg-amber-500');
+    try { await _bgSync; } catch (e) {}
+  }
+  localStorage.removeItem('quizState');
+  toast('キャッシュを削除しました', 'bg-rose-500');
+  showTab('quiz');
+  loadCards(true);
+}
+
+// ── データ取得 ──
+async function loadCards(force) {
+  if (!force && loadState()) {
+    // キャッシュから復元
+    $('loadingBox').classList.add('hidden');
+    $('streak').textContent = streak;
+    if (queueIdx >= cards.length) showDone();
+    else { $('quizBox').classList.remove('hidden'); $('quizBox').classList.add('flex'); renderCard(); }
+    toast('前回の続きから再開', 'bg-indigo-500');
+    return;
+  }
+  inWrongReview = false;
+  $('loadingBox').classList.remove('hidden');
+  $('quizBox').classList.add('hidden'); $('quizBox').classList.remove('flex');
+  $('doneBox').classList.add('hidden'); $('doneBox').classList.remove('flex');
+  $('loadBtn').classList.add('hidden');
+  const msg = $('loadingMsg');
+  if (!cfg.token) {
+    msg.textContent = '⚙設定タブでNotionトークンを入力してください';
+    $('loadBtn').classList.remove('hidden');
+    return;
+  }
+  try {
+    const mapCard = r => ({
+      pageId: r.id,
+      id: prop(r.properties, '穴ID', 'title'),
+      section: prop(r.properties, '題番号', 'rich_text'),
+      title: prop(r.properties, '題名', 'rich_text'),
+      heading: prop(r.properties, '大見出し', 'rich_text'),
+      question: prop(r.properties, '問題文', 'rich_text'),
+      answer: prop(r.properties, '正解', 'rich_text'),
+      holeNum: prop(r.properties, '穴番号', 'number'),
+      rank: prop(r.properties, '重要度', 'select'),
+      interval: prop(r.properties, '間隔_日数', 'number') || 1,
+      ef: prop(r.properties, '難易度係数', 'number') || 2.5,
+      correct: prop(r.properties, '正答回数', 'number'),
+      total: prop(r.properties, '出題回数', 'number'),
+    });
+    async function queryAll(filter, label) {
+      let res = [], cursor, page = 0;
+      do {
+        const body = { page_size: 100, sorts: [{ property: '穴ID', direction: 'ascending' }] };
+        if (filter) body.filter = filter;
+        if (cursor) body.start_cursor = cursor;
+        const j = await notion(`/v1/databases/${cfg.db}/query`, body);
+        res = res.concat(j.results);
+        cursor = j.has_more ? j.next_cursor : undefined;
+        msg.textContent = `${label} ${res.length}件`;
+      } while (cursor && ++page < 200);
+      return res;
+    }
+
+    // 出題する「題」を決める。題が対象になったら、その題の全穴を出題する。
+    const sel = selectedSections();
+    let targetSections;
+    if (sel) {
+      // 範囲を選んでいる場合: その題を完全学習（締切に関係なく全穴）
+      targetSections = sel.slice();
+    } else {
+      // 全範囲: 今日が締切の穴を持つ「題」だけを対象にし、その題は全穴を出す
+      const due = await queryAll(
+        { property: '次回出題日', date: { on_or_before: todayStr() } }, '締切の穴を確認中...');
+      targetSections = [...new Set(due.map(r => prop(r.properties, '題番号', 'rich_text')))];
+    }
+    if (targetSections.length === 0) {
+      cards = []; baseCards = [];
+      queueIdx = 0; wrongCards = []; sessionResults = {}; streak = 0;
+      scoped = false; inWrongReview = false; showSecPanels = true;
+      undoStack = []; updateUndoBtn(); saveState();
+      $('loadingBox').classList.add('hidden'); showDone();
+      return;
+    }
+
+    // 対象題の全穴を取得（題番号のORフィルタ）
+    const orFilter = { or: targetSections.map(s => ({ property: '題番号', rich_text: { equals: s } })) };
+    const results = await queryAll(orFilter, '題の全穴を取得中...');
+    let all = results.map(mapCard).filter(c => targetSections.includes(c.section));
+
+    const bySec = {};
+    for (const c of all) (bySec[c.section] = bySec[c.section] || []).push(c);
+    const secs = Object.keys(bySec);
+    const totalOf = s => bySec[s].reduce((a, c) => a + c.total, 0);
+    const rateOf = s => { let ok = 0, tot = 0; for (const c of bySec[s]) { ok += c.correct; tot += c.total; } return tot > 0 ? ok / tot : 2; };
+    const mode = cfg.orderMode || 'fewest';
+    if (mode === 'fewest') {
+      // 回答数が少ない順（既定）。同数は題番号順
+      secs.sort((a, b) => totalOf(a) - totalOf(b) || (tidSort(a, b)));
+    } else if (mode === 'lowrate') {
+      secs.sort((a, b) => rateOf(a) - rateOf(b));
+    } else if (mode === 'sequential') {
+      secs.sort(tidSort);
+    } else { // random
+      for (let i = secs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [secs[i], secs[j]] = [secs[j], secs[i]];
+      }
+    }
+    cards = [];
+    for (const s of secs) {
+      cards = cards.concat(orderSectionCards(bySec[s]));
+    }
+    baseCards = cards.slice(); clearSecTextCache(); mergeRank(baseCards);
+    queueIdx = 0; wrongCards = []; sessionResults = {}; streak = 0;
+    scoped = false; inWrongReview = false; showSecPanels = true;
+    undoStack = []; updateUndoBtn();
+    saveState();
+    $('loadingBox').classList.add('hidden');
+    if (cards.length === 0) showDone();
+    else { $('quizBox').classList.remove('hidden'); $('quizBox').classList.add('flex'); renderCard(); }
+  } catch (e) {
+    msg.textContent = '⚠ ' + e.message;
+    $('loadBtn').classList.remove('hidden');
+  }
+}
+
+// ── 出題 ──
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// 穴の並びは holeNum ではなく「本文中の出現位置」で決める（途中追加でも順序が崩れない）
+// 各カード自身の〔_〕位置で並べる（マーカーを1文字に正規化して位置を比較）。
+// 代表1枚に依存しないので、追加穴も確実に本文位置どおりに割り込む。
+function holePos(card) {
+  const norm = (card.question || '').replace(/〔_〕|〔●\d+〕/g, m => m === '〔_〕' ? '\x02' : '\x01');
+  const i = norm.indexOf('\x02');
+  return i < 0 ? 1e9 : i;
+}
+function orderHeadingCards(hcards) {
+  if (hcards.length <= 1) return hcards.slice();
+  return hcards.slice().sort((a, b) => holePos(a) - holePos(b));
+}
+function orderSectionCards(scards) {
+  const byHead = {};
+  for (const c of scards) (byHead[c.heading] = byHead[c.heading] || []).push(c);
+  const heads = Object.keys(byHead).sort((a, b) => {
+    const na = +((a.match(/〔(\d+)〕/) || [])[1] || 999), nb = +((b.match(/〔(\d+)〕/) || [])[1] || 999);
+    return na - nb;
+  });
+  let out = [];
+  for (const h of heads) out = out.concat(orderHeadingCards(byHead[h]));
+  return out;
+}
+function resortSection(sec) {
+  // baseCards 内の該当題を本文順に並べ替える（追加・統合後の整合用）
+  const others = baseCards.filter(c => c.section !== sec);
+  const sc = orderSectionCards(baseCards.filter(c => c.section === sec));
+  // 元の題の出現位置を保ったまま差し替え
+  const out = []; let inserted = false;
+  for (const c of baseCards) {
+    if (c.section === sec) { if (!inserted) { out.push(...sc); inserted = true; } }
+    else out.push(c);
+  }
+  baseCards = out;
+}
+
+// 題全体の本文を組み立て（見出しごとの本文を順に連結、全穴を〔●n〕に）。題内で本文が統一される。
+let _secTextCache = {};
+function clearSecTextCache() { _secTextCache = {}; }
+function fullSectionText(sec) {
+  if (_secTextCache[sec]) return _secTextCache[sec];
+  const seen = new Set(), parts = [];
+  for (const card of baseCards) {
+    if (card.section !== sec || seen.has(card.heading)) continue;
+    seen.add(card.heading);
+    parts.push(card.question.replace('〔_〕', `〔●${card.holeNum}〕`));
+  }
+  const full = parts.join('\n');
+  _secTextCache[sec] = full;
+  return full;
+}
+
+function renderCard() {
+  removeAnsPop();
+  const c = cards[queueIdx];
+  if (!c) { showDone(); return; }
+  $('qSection').textContent = '問題' + c.section;
+  $('qRank').innerHTML = rankBadge(c.section, 'text-[11px]');
+  $('qTitle').textContent = c.title;
+  $('qHole').textContent = `#穴${c.holeNum}・${c.total > 0 ? Math.round(c.correct / c.total * 100) + '%' : '初'}`;
+  // 見出し全体の正答率（この見出しの全穴の累計回答から算出）
+  const hcs = baseCards.filter(x => x.section === c.section && headNum(x) === headNum(c));
+  let hOk = 0, hTot = 0;
+  hcs.forEach(x => { hOk += (x.correct || 0); hTot += (x.total || 0); });
+  const hRate = hTot ? Math.round(hOk / hTot * 100) : null;
+  $('qHeading').innerHTML = esc(c.heading) + (hRate == null ? '' :
+    ` <b class="${hRate >= 90 ? 'text-emerald-500' : hRate >= 70 ? 'text-amber-500' : 'text-rose-500'}">見出し${hRate}%</b><span class="opacity-70">(${hTot}回)</span>`);
+  $('wrongBadge').classList.toggle('hidden', !wrongMap[c.id]);
+  updateWeakToggle();
+  renderRepairBanner(c);
+  renderRelLinks(c);
+
+  // 見出し単位の本文をそのまま表示（題全体の連結はしない＝文章が崩れない）
+  let raw = c.question;
+  // 先頭の見出し行〔n〕…に色を付ける
+  raw = raw.replace(/^(〔\d+〕[^\n]*)/, '‹‹HD››$1‹‹/HD››');
+  // 小見出し ⑴⑵…（条文番号付き）に色を付け、改行が無ければ追加
+  raw = raw.replace(/([⑴-⒇][^（）\n]{0,28}（[^）]*[法令措則条通規][^）]*）)(\n?)/g,
+    (m, h, nl) => '‹‹SH››' + h + '‹‹/SH››' + (nl || '\n'));
+  // 出題穴の直前の読点（、。改行）から穴までを文脈ハイライト（文脈理解のため）
+  const hi = raw.indexOf('〔_〕');
+  if (hi >= 0) {
+    let st = 0;
+    for (const d of ['、', '。', '\n', '：', '；']) {
+      const k = raw.lastIndexOf(d, hi - 1);
+      if (k + 1 > st) st = k + 1;
+    }
+    raw = raw.slice(0, st) + '‹‹CL››' + raw.slice(st, hi + 3) + '‹‹/CL››' + raw.slice(hi + 3);
+  }
+  // 出題穴と伏せ字を同じ3文字幅に統一（問題が進んでも本文がズレない）
+  const curCls = wrongMap[c.id] ? 'hole-wrong' : 'hole';
+  $('qText').innerHTML = esc(raw)
+    .split('‹‹HD››').join('<span class="bodyhead">').split('‹‹/HD››').join('</span>')
+    .split('‹‹SH››').join('<span class="subhead">').split('‹‹/SH››').join('</span>')
+    .split('‹‹CL››').join('<span class="clause">').split('‹‹/CL››').join('</span>')
+    .replace(/〔_〕/g, `<span class="${curCls} blink">〔？〕</span>`)
+    .replace(/〔●(\d+)〕/g, (m, n) => {
+      const oid = c.section + '_' + String(n).padStart(3, '0');
+      return `<span class="${wrongMap[oid] ? 'mask-wrong' : 'mask'}" onclick="showHoleAnswer(${n},event)">〔●〕</span>`;
+    });
+  $('qCard').classList.remove('card-in');
+  void $('qCard').offsetWidth;
+  $('qCard').classList.add('card-in');
+  $('qScroll').scrollTop = 0;
+  // 〔？〕が見える位置までスクロール
+  setTimeout(() => {
+    const el = $('qText').querySelector('.blink');
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'instant' });
+  }, 50);
+  $('revealBtn').classList.remove('hidden');
+  $('judgeBtns').classList.add('hidden');
+  $('footerBar').classList.remove('hidden');
+  updateProgress();
+}
+
+function updateProgress() {
+  const done = Math.min(queueIdx, cards.length);
+  $('progressText').textContent = `${done} / ${cards.length}` + (inWrongReview ? '（復習中）' : '');
+  $('progressBar').style.width = (cards.length ? done / cards.length * 100 : 0) + '%';
+  $('streak').textContent = streak;
+}
+
+// 本文中の伏せ字●をタップしたら、その穴の正解を吹き出しで表示（前問の確認用）
+function showHoleAnswer(n, ev) {
+  if (ev) ev.stopPropagation();
+  const c = cards[queueIdx];
+  if (!c) return;
+  const other = baseCards.find(x => x.section === c.section && x.holeNum === n);
+  if (!other) { toast('その穴は本日の出題範囲にありません', 'bg-slate-600'); return; }
+  const el = ev && ev.target;
+  if (!el) return;
+  document.querySelectorAll('.holepop').forEach(p => p.remove());
+  const pop = document.createElement('div');
+  pop.className = 'holepop pop';
+  pop.textContent = other.answer;
+  pop.style.cssText =
+    'position:fixed;z-index:60;pointer-events:none;background:#334155;color:#fff;font-weight:700;font-size:14px;' +
+    'padding:6px 10px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.3);' +
+    'max-width:calc(100vw - 24px);width:max-content;white-space:normal;';
+  document.body.appendChild(pop);
+  const r = el.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+  let left = Math.min(Math.max(r.left, 12), vw - pop.offsetWidth - 12);
+  let top = r.top - pop.offsetHeight - 8;
+  if (top < 70) top = r.bottom + 8;
+  pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  clearTimeout(showHoleAnswer._t);
+  showHoleAnswer._t = setTimeout(() => pop.remove(), 2600);
+}
+
+function removeAnsPop() {
+  const p = $('ansPop');
+  if (p) p.remove();
+  if (removeAnsPop._cleanup) { removeAnsPop._cleanup(); removeAnsPop._cleanup = null; }
+}
+
+function reveal() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  const el = $('qText').querySelector('.blink') || $('qText').querySelector('.hole, .hole-wrong');
+  if (el) {
+    el.classList.remove('blink');
+    removeAnsPop();
+    // body直下に固定配置（スクロール領域にクリップされず、必ず画面内に収まる）
+    const pop = document.createElement('div');
+    pop.id = 'ansPop';
+    pop.className = 'pop';
+    pop.textContent = c.answer;
+    pop.style.cssText =
+      'position:fixed;z-index:60;pointer-events:none;background:#059669;color:#fff;font-weight:700;' +
+      'font-size:16px;line-height:1.5;padding:8px 12px;border-radius:12px;' +
+      'box-shadow:0 6px 18px rgba(0,0,0,.3);max-width:calc(100vw - 24px);' +
+      'width:max-content;white-space:normal;visibility:hidden;';
+    const tail = document.createElement('div');
+    tail.id = 'ansPopTail';
+    tail.style.cssText = 'position:absolute;border:7px solid transparent;';
+    pop.appendChild(tail);
+    document.body.appendChild(pop);
+
+    const place = () => {
+      // 折り返した穴は最初の行ボックスを基準にする（位置ズレ防止）
+      const rects = el.getClientRects();
+      const r = rects.length ? rects[0] : el.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      const pw = pop.offsetWidth, ph = pop.offsetHeight;
+      // 横: 穴の左端に合わせ、画面内にクランプ
+      let left = Math.min(Math.max(r.left, 12), vw - pw - 12);
+      // 縦: 穴の上。入らなければ下。
+      const headerH = 70;
+      // 常に穴の上に表示。上に入らないときだけスクロールで余白を作って上に出す
+      let top = r.top - ph - 10;
+      let below = false;
+      if (top < headerH) {
+        const sc = $('qScroll');
+        sc.scrollTop -= (headerH - top);
+        const rr = el.getClientRects();
+        const r2 = rr.length ? rr[0] : el.getBoundingClientRect();
+        top = r2.top - ph - 10;
+        if (top < headerH) { top = r2.bottom + 10; below = true; }
+      }
+      pop.style.left = left + 'px';
+      pop.style.top = top + 'px';
+      // しっぽを穴の中央に向ける
+      const tx = Math.min(Math.max(r.left + r.width / 2 - left - 7, 8), pw - 22);
+      tail.style.left = tx + 'px';
+      if (below) {
+        tail.style.top = '-14px'; tail.style.bottom = '';
+        tail.style.borderBottomColor = pop.style.background || '#059669';
+        tail.style.borderTopColor = 'transparent';
+      } else {
+        tail.style.bottom = '-14px'; tail.style.top = '';
+        tail.style.borderTopColor = pop.style.background || '#059669';
+        tail.style.borderBottomColor = 'transparent';
+      }
+      pop.style.visibility = 'visible';
+    };
+    requestAnimationFrame(place);
+    el.scrollIntoView({ block: 'center', behavior: 'instant' });
+    requestAnimationFrame(place);
+    // スクロールに追従
+    const sc = $('qScroll');
+    sc.addEventListener('scroll', place, { passive: true });
+    removeAnsPop._cleanup = () => sc.removeEventListener('scroll', place);
+  }
+  $('revealBtn').classList.add('hidden');
+  $('judgeBtns').classList.remove('hidden');
+}
+
+// ── SM-2 ──
+function intervalCap() {
+  const d = daysToExam();
+  if (d <= 7) return 1;
+  if (d <= 14) return 3;
+  if (d <= 30) return 7;
+  return 60;
+}
+function sm2(c, ok) {
+  let interval = c.interval, ef = c.ef;
+  if (ok) {
+    ef = Math.min(3.0, ef + 0.1);
+    interval = (c.total === 0 || interval <= 1) ? (c.total === 0 ? 1 : 3) : Math.round(interval * ef);
+  } else {
+    ef = Math.max(1.3, ef - 0.2);
+    interval = 1;
+  }
+  interval = Math.max(1, Math.min(interval, intervalCap(), daysToExam() || 1));
+  const next = new Date();
+  next.setDate(next.getDate() + interval);
+  const nextStr = next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0') + '-' + String(next.getDate()).padStart(2, '0');
+  return { interval, ef, nextStr };
+}
+
+// ── アンドゥ ──
+let undoStack = [];
+function updateUndoBtn() {
+  const b = $('undoBtn');
+  b.disabled = undoStack.length === 0;
+  b.classList.toggle('opacity-40', undoStack.length === 0);
+}
+function undo() {
+  const u = undoStack.pop();
+  if (!u) return;
+  const c = cards[u.idx];
+  // ローカル統計の巻き戻し
+  const st = sessionResults[c.section];
+  if (st) { u.ok ? st.ok-- : st.ng--; }
+  if (!u.inWrongReview) {
+    const h = history[c.section];
+    if (h) {
+      u.ok ? h.ok-- : h.ng--;
+      const hn = headNum(c);
+      if (h.heads && h.heads[hn]) { u.ok ? h.heads[hn].ok-- : h.heads[hn].ng--; }
+      localStorage.setItem('history', JSON.stringify(history));
+      unlogAnswer(c);
+    }
+  }
+  if (u.wasWrong) wrongMap[c.id] = true; else delete wrongMap[c.id];
+  localStorage.setItem('wrongMap', JSON.stringify(wrongMap));
+  if (!u.ok) {
+    const wi = wrongCards.lastIndexOf(c);
+    if (wi >= 0) wrongCards.splice(wi, 1);
+  }
+  streak = u.streak;
+  // SM-2とNotionの巻き戻し
+  if (!u.inWrongReview) {
+    c.correct = u.prev.correct; c.total = u.prev.total;
+    c.interval = u.prev.interval; c.ef = u.prev.ef;
+    notion('/v1/pages/' + c.pageId, {
+      properties: {
+        '次回出題日': { date: { start: todayStr() } },
+        '間隔_日数': { number: c.interval },
+        '難易度係数': { number: c.ef },
+        '正答回数': { number: c.correct },
+        '出題回数': { number: c.total },
+      },
+    }, 'PATCH').catch(() => toast('巻き戻しの書き込み失敗', 'bg-rose-500'));
+  }
+  queueIdx = u.idx;
+  saveState();
+  updateUndoBtn();
+  $('quizBox').classList.remove('hidden'); $('quizBox').classList.add('flex');
+  $('doneBox').classList.add('hidden'); $('doneBox').classList.remove('flex');
+  $('secDoneBox').classList.add('hidden'); $('secDoneBox').classList.remove('flex');
+  $('footerBar').classList.remove('hidden');
+  renderCard();
+  toast('↩ 1問戻しました', 'bg-indigo-500');
+}
+
+function judge(ok) {
+  const c = cards[queueIdx];
+  if (!c) return;
+  undoStack.push({
+    idx: queueIdx, ok, inWrongReview,
+    wasWrong: !!wrongMap[c.id], streak,
+    prev: { correct: c.correct, total: c.total, interval: c.interval, ef: c.ef },
+  });
+  if (undoStack.length > 20) undoStack.shift();
+  updateUndoBtn();
+  lastAnsweredSection = c.section;
+  const r = sm2(c, ok);
+  const st = sessionResults[c.section] = sessionResults[c.section] || { ok: 0, ng: 0, title: c.title };
+  ok ? st.ok++ : st.ng++;
+  // 累計履歴（分析用）。見出し〔n〕ごとにも集計
+  const h = history[c.section] = history[c.section] || { ok: 0, ng: 0, title: c.title, heads: {} };
+  if (!h.heads) h.heads = {};
+  if (!inWrongReview) {
+    ok ? h.ok++ : h.ng++; h.title = c.title;
+    const hn = headNum(c);
+    const hh = h.heads[hn] = h.heads[hn] || { ok: 0, ng: 0 };
+    ok ? hh.ok++ : hh.ng++;
+    localStorage.setItem('history', JSON.stringify(history));
+    logAnswer(c, ok);
+  }
+
+  if (ok) { delete wrongMap[c.id]; streak++; }
+  else { wrongMap[c.id] = true; if (!scoped && !wrongCards.includes(c)) wrongCards.push(c); streak = 0; }
+  localStorage.setItem('wrongMap', JSON.stringify(wrongMap));
+
+  if (!inWrongReview) {
+    notion('/v1/pages/' + c.pageId, {
+      properties: {
+        '次回出題日': { date: { start: r.nextStr } },
+        '間隔_日数': { number: r.interval },
+        '難易度係数': { number: r.ef },
+        '正答回数': { number: c.correct + (ok ? 1 : 0) },
+        '出題回数': { number: c.total + 1 },
+      },
+    }, 'PATCH').catch(() => toast('書き戻し失敗（後で再同期されません）', 'bg-rose-500'));
+    c.correct += ok ? 1 : 0; c.total += 1; c.interval = r.interval; c.ef = r.ef;
+  }
+
+  if (ok) { confetti(); }
+  else {
+    // 穴と吹き出しを赤に切り替えて目立たせる
+    const span = $('qText').querySelector('.hole, .hole-wrong');
+    if (span) span.classList.replace('hole', 'hole-wrong');
+    const pop = $('ansPop');
+    if (pop) {
+      pop.style.background = '#dc2626';
+      const tail = $('ansPopTail');
+      if (tail) {
+        if (tail.style.borderTopColor !== 'transparent' && tail.style.borderTopColor) tail.style.borderTopColor = '#dc2626';
+        if (tail.style.borderBottomColor !== 'transparent' && tail.style.borderBottomColor) tail.style.borderBottomColor = '#dc2626';
+      }
+    }
+  }
+  queueIdx++;
+  saveState();
+  setTimeout(advance, ok ? 300 : 800);
+}
+
+// 採点後の進行制御：題の境界で完了パネルを表示
+function advance() {
+  if (scoped) {
+    if (queueIdx >= cards.length) { endScoped(); return; }
+    renderCard();
+    return;
+  }
+  // 題が終わったか（次が別題 or キュー終端）。最後の題でもパネルを出す
+  const ended = queueIdx >= cards.length;
+  const nextSec = ended ? null : cards[queueIdx].section;
+  const sectionFinished = ended || nextSec !== lastAnsweredSection;
+  if (showSecPanels && sectionFinished && lastAnsweredSection) { showSectionDone(lastAnsweredSection); return; }
+  if (ended) { showDone(); return; }
+  renderCard();
+}
+
+// ── 題完了パネル ──
+function showSectionDone(sec) {
+  removeAnsPop();
+  const all = baseCards.filter(c => c.section === sec);
+  const wrong = all.filter(c => wrongMap[c.id]);
+  const st = sessionResults[sec] || { ok: 0, ng: 0 };
+  $('secDoneId').textContent = sec;
+  $('secDoneStats').textContent =
+    `正解 ${st.ok} ／ 不正解 ${st.ng}` + (st.ok + st.ng ? `（正答率 ${Math.round(st.ok / (st.ok + st.ng) * 100)}%）` : '');
+  $('secReviewWrong').classList.toggle('hidden', wrong.length === 0);
+  $('continueBtn').textContent = (queueIdx >= cards.length) ? '✅ 完了画面へ' : '➡️ 次の題へ進む';
+  $('quizBox').classList.add('hidden'); $('quizBox').classList.remove('flex');
+  $('secDoneBox').classList.remove('hidden'); $('secDoneBox').classList.add('flex');
+  $('footerBar').classList.add('hidden');
+  showSectionDone._sec = sec;
+}
+function reviewSectionWrong() {
+  const sec = showSectionDone._sec;
+  const list = baseCards.filter(c => c.section === sec && wrongMap[c.id]);
+  startScoped(list, () => showSectionDone(sec), '😤 間違えた箇所を復習');
+}
+function reviewSectionAll() {
+  const sec = showSectionDone._sec;
+  const list = baseCards.filter(c => c.section === sec).sort((a, b) => a.holeNum - b.holeNum);
+  startScoped(list, () => showSectionDone(sec), '🔁 この題を全復習');
+}
+function continueNextSection() {
+  $('secDoneBox').classList.add('hidden'); $('secDoneBox').classList.remove('flex');
+  $('quizBox').classList.remove('hidden'); $('quizBox').classList.add('flex');
+  if (queueIdx >= cards.length) showDone();
+  else renderCard();
+}
+
+// ── スコープ復習（練習のみ・Notionへは書き込まない） ──
+function startScoped(list, onDone, label) {
+  if (!list || list.length === 0) { toast('対象がありません', 'bg-slate-600'); return; }
+  scopedSaved = { cards, queueIdx };
+  scopedReturn = onDone;
+  scoped = true; inWrongReview = true;
+  cards = list.slice(); queueIdx = 0;
+  undoStack = []; updateUndoBtn();
+  $('secDoneBox').classList.add('hidden'); $('secDoneBox').classList.remove('flex');
+  $('doneBox').classList.add('hidden'); $('doneBox').classList.remove('flex');
+  $('quizBox').classList.remove('hidden'); $('quizBox').classList.add('flex');
+  if (label) toast(label + 'スタート', 'bg-amber-500');
+  renderCard();
+}
+function endScoped() {
+  const ret = scopedReturn;
+  cards = scopedSaved.cards; queueIdx = scopedSaved.queueIdx;
+  scoped = false; inWrongReview = false; scopedReturn = null; scopedSaved = null;
+  undoStack = []; updateUndoBtn();
+  saveState();
+  if (ret) ret(); else continueNextSection();
+}
+
+// ── 修復フラグ（穴のない見出しの検出） ──
+function renderRepairBanner(c) {
+  const b = $('repairBanner');
+  const all = SECTION_STRUCT[c.section] || [];
+  const present = new Set(baseCards.filter(x => x.section === c.section).map(x => headNum(x)));
+  const missing = all.filter(n => !present.has(n));
+  if (missing.length === 0) { b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.innerHTML = `🔧 穴のない見出し: ${missing.map(n => '〔' + n + '〕').join('')}
+    <button onclick="openAdd()" class="ml-auto px-2 py-0.5 rounded bg-amber-500 text-white pressable">穴を追加</button>`;
+}
+
+// ── フラグ（穴抜け・要修正箇所をNotionに記録して後でClaudeが穴生成） ──
+let notionFlags = [];   // Notionフラグ（未対応）のキャッシュ
+let fullStats = JSON.parse(localStorage.getItem('fullStats') || 'null'); // Notion全題集計（累計・端末共通）
+
+// Notionの全穴から累計正答率を集計（端末を跨いで共通、リセットされない）
+async function aggregateAllFromNotion() {
+  if (!cfg.token) { toast('⚙トークン未設定', 'bg-rose-500'); return; }
+  toast('📊 集計中...', 'bg-indigo-500');
+  try {
+    let res = [], cursor;
+    do {
+      const body = { page_size: 100 };
+      if (cursor) body.start_cursor = cursor;
+      const j = await notion(`/v1/databases/${cfg.db}/query`, body);
+      res = res.concat(j.results); cursor = j.has_more ? j.next_cursor : undefined;
+    } while (cursor);
+    const secs = {};
+    for (const p of res) {
+      const s = prop(p.properties, '題番号', 'rich_text');
+      if (!s) continue;
+      const correct = prop(p.properties, '正答回数', 'number');
+      const total = prop(p.properties, '出題回数', 'number');
+      const heading = prop(p.properties, '大見出し', 'rich_text');
+      const title = prop(p.properties, '題名', 'rich_text');
+      const n = (heading.match(/〔(\d+)〕/) || [])[1] || '-';
+      const o = secs[s] = secs[s] || { ok: 0, ng: 0, title, heads: {} };
+      o.ok += correct; o.ng += (total - correct); o.title = title;
+      const hh = o.heads[n] = o.heads[n] || { ok: 0, ng: 0 };
+      hh.ok += correct; hh.ng += (total - correct);
+    }
+    fullStats = { ts: Date.now(), secs };
+    localStorage.setItem('fullStats', JSON.stringify(fullStats));
+    toast('✓ 集計完了', 'bg-emerald-600');
+    renderStats();
+  } catch (e) { toast('集計失敗: ' + e.message, 'bg-rose-500'); }
+}
+function flagSpot() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  $('flagWhere').textContent = `問題${c.section} ${c.heading || ''} ・ #穴${c.holeNum}`;
+  $('flagNote').value = '';
+  $('flagMsg').textContent = '';
+  $('flagModal').classList.remove('hidden');
+  setTimeout(() => $('flagNote').focus(), 50);
+}
+function closeFlag() { $('flagModal').classList.add('hidden'); }
+async function saveFlag() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  const note = $('flagNote').value.trim();
+  $('flagSaveBtn').disabled = true;
+  $('flagMsg').textContent = '保存中...';
+  try {
+    await notion('/v1/pages', {
+      parent: { database_id: cfg.flagDb },
+      properties: {
+        '内容': { title: [{ text: { content: (c.section + ' ' + (c.heading || '')).slice(0, 200) } }] },
+        '題番号': { rich_text: [{ text: { content: c.section } }] },
+        '大見出し': { rich_text: [{ text: { content: (c.heading || '').slice(0, 200) } }] },
+        'メモ': { rich_text: [{ text: { content: note.slice(0, 1900) } }] },
+        '状態': { select: { name: '未対応' } },
+      },
+    });
+    closeFlag();
+    toast('🚩 フラグをNotionに保存しました', 'bg-emerald-600');
+  } catch (e) {
+    $('flagMsg').textContent = '⚠ ' + e.message;
+  }
+  $('flagSaveBtn').disabled = false;
+}
+async function refreshFlags() {
+  if (!cfg.token || !cfg.flagDb) { notionFlags = []; return; }
+  try {
+    let res = [], cursor;
+    do {
+      const body = { page_size: 100, filter: { property: '状態', select: { equals: '未対応' } } };
+      if (cursor) body.start_cursor = cursor;
+      const j = await notion(`/v1/databases/${cfg.flagDb}/query`, body);
+      res = res.concat(j.results); cursor = j.has_more ? j.next_cursor : undefined;
+    } while (cursor);
+    notionFlags = res.map(p => ({
+      pageId: p.id,
+      section: prop(p.properties, '題番号', 'rich_text'),
+      heading: prop(p.properties, '大見出し', 'rich_text'),
+      note: prop(p.properties, 'メモ', 'rich_text'),
+    }));
+  } catch (e) { notionFlags = []; }
+}
+function renderSettingsFlags() {
+  const box = $('settingsFlags');
+  if (!box) return;
+  if (notionFlags.length === 0) {
+    box.innerHTML = '<div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-4 text-sm text-slate-400">🚩 未対応フラグはありません</div>';
+    return;
+  }
+  box.innerHTML = `<div class="bg-amber-50 dark:bg-amber-950/50 rounded-2xl shadow p-4">
+    <h2 class="font-bold mb-1">🚩 要修正フラグ（${notionFlags.length}）</h2>
+    <div class="text-[11px] text-slate-400 mb-2">Notionに保存済み。「フラグを修正して」と指示すればClaudeが対応します</div>
+    ${notionFlags.map(f => `
+      <div class="flex items-start gap-2 py-1.5 border-b border-amber-100 dark:border-amber-900 last:border-0">
+        <div class="flex-1">
+          <div class="text-sm font-medium">${esc(f.section)} <span class="text-[11px] text-slate-400">${esc(f.heading || '')}</span></div>
+          ${f.note ? `<div class="text-xs text-amber-700 dark:text-amber-300">${esc(f.note)}</div>` : ''}
+        </div>
+        <button onclick="markFlagDone('${f.pageId}')" class="text-[11px] text-slate-400 px-2 py-1 pressable">✓済</button>
+      </div>`).join('')}
+  </div>`;
+}
+async function markFlagDone(pageId) {
+  try {
+    await notion('/v1/pages/' + pageId, { properties: { '状態': { select: { name: '対応済' } } } }, 'PATCH');
+    notionFlags = notionFlags.filter(f => f.pageId !== pageId);
+    renderSettingsFlags();
+    toast('✓ 対応済にしました', 'bg-slate-600');
+  } catch (e) { toast('⚠ ' + e.message, 'bg-rose-500'); }
+}
+
+// ── スキップ ──
+function skipHeading() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  let n = 0;
+  while (queueIdx < cards.length &&
+         cards[queueIdx].section === c.section &&
+         cards[queueIdx].heading === c.heading) { queueIdx++; n++; }
+  toast(`⏩ ${c.heading || '見出し'} を${n}問スキップ`, 'bg-slate-600');
+  saveState();
+  // 次の見出しが別の題なら、一旦その題の完了画面を挟む
+  if (showSecPanels && (queueIdx >= cards.length || cards[queueIdx].section !== c.section)) {
+    lastAnsweredSection = c.section;
+    showSectionDone(c.section);
+    return;
+  }
+  renderCard();
+}
+function skipSection() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  let n = 0;
+  while (queueIdx < cards.length && cards[queueIdx].section === c.section) { queueIdx++; n++; }
+  toast(`⏭ 問題${c.section} を${n}問スキップ`, 'bg-slate-600');
+  saveState();
+  renderCard();
+}
+
+function showDone() {
+  removeAnsPop();
+  $('quizBox').classList.add('hidden'); $('quizBox').classList.remove('flex');
+  $('secDoneBox').classList.add('hidden'); $('secDoneBox').classList.remove('flex');
+  $('loadingBox').classList.add('hidden');
+  $('footerBar').classList.add('hidden');
+  $('doneBox').classList.remove('hidden'); $('doneBox').classList.add('flex');
+  let ok = 0, ng = 0;
+  for (const s of Object.values(sessionResults)) { ok += s.ok; ng += s.ng; }
+  $('doneStats').textContent = `正解 ${ok} ／ 不正解 ${ng}` + (ok + ng ? `（正答率 ${Math.round(ok / (ok + ng) * 100)}%）` : '');
+  const wrongNow = baseCards.filter(c => wrongMap[c.id]);
+  $('reviewWrongBtn').classList.toggle('hidden', wrongNow.length === 0);
+  updateProgress();
+}
+
+function startWrongReview() {
+  const list = baseCards.filter(c => wrongMap[c.id]);
+  if (list.length === 0) { toast('不正解はありません 👏', 'bg-emerald-600'); return; }
+  inWrongReview = true; scoped = false; showSecPanels = false;
+  cards = list.slice(); baseCards = cards.slice(); queueIdx = 0;
+  wrongCards = []; sessionResults = {};
+  undoStack = []; updateUndoBtn();
+  saveState();
+  $('doneBox').classList.add('hidden'); $('doneBox').classList.remove('flex');
+  $('quizBox').classList.remove('hidden'); $('quizBox').classList.add('flex');
+  $('footerBar').classList.remove('hidden');
+  toast('😤 不正解の即時復習スタート', 'bg-amber-500');
+  renderCard();
+}
+
+// 今日の分を最初から全部やり直す（練習。Notionには書き込まない）
+function reviewAllToday() {
+  if (baseCards.length === 0) { toast('対象がありません', 'bg-slate-600'); return; }
+  inWrongReview = true; scoped = false; showSecPanels = true;
+  cards = baseCards.slice(); queueIdx = 0;
+  sessionResults = {};
+  undoStack = []; updateUndoBtn();
+  saveState();
+  $('doneBox').classList.add('hidden'); $('doneBox').classList.remove('flex');
+  $('quizBox').classList.remove('hidden'); $('quizBox').classList.add('flex');
+  $('footerBar').classList.remove('hidden');
+  toast('🔁 今日の分を再復習（練習）', 'bg-violet-500');
+  renderCard();
+}
+
+// ── 修正モーダル ──
+function openEdit() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  $('editId').textContent = c.id;
+  $('editQ').value = c.question;
+  $('editA').value = c.answer;
+  $('editMsg').textContent = '';
+  $('editModal').classList.remove('hidden');
+}
+function closeEdit() { $('editModal').classList.add('hidden'); }
+// 出題中の穴をNotionからアーカイブして削除
+async function deleteHole() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  if (!confirm(`この穴を削除しますか？\n${c.section} #穴${c.holeNum}\n正解: ${c.answer}`)) return;
+  $('editMsg').textContent = '削除中...';
+  try {
+    await notion('/v1/pages/' + c.pageId, { archived: true }, 'PATCH');
+    // ローカルのキューからも除去
+    baseCards = baseCards.filter(x => x.pageId !== c.pageId);
+    const wi = wrongCards.indexOf(c); if (wi >= 0) wrongCards.splice(wi, 1);
+    delete wrongMap[c.id];
+    cards.splice(queueIdx, 1);
+    clearSecTextCache();
+    saveState();
+    closeEdit();
+    toast('🗑 穴を削除しました', 'bg-slate-600');
+    if (queueIdx >= cards.length) showDone(); else renderCard();
+  } catch (e) {
+    $('editMsg').textContent = '⚠ ' + e.message;
+  }
+}
+// 修正の差分を抽出し、前後の文脈をアンカーとして付ける
+// （改行1文字の修正でも、文脈ごと照合することで他の穴へ安全に反映できる）
+function diffBlock(oldS, newS, ctx = 14) {
+  let p = 0;
+  while (p < oldS.length && p < newS.length && oldS[p] === newS[p]) p++;
+  let s = 0;
+  while (s < oldS.length - p && s < newS.length - p &&
+         oldS[oldS.length - 1 - s] === newS[newS.length - 1 - s]) s++;
+  if (oldS.length === newS.length && p === oldS.length) return null; // 変更なし
+  const left = oldS.slice(Math.max(0, p - ctx), p);
+  const right = oldS.slice(oldS.length - s, Math.min(oldS.length, oldS.length - s + ctx));
+  return {
+    oldBlock: left + oldS.slice(p, oldS.length - s) + right,
+    newBlock: left + newS.slice(p, newS.length - s) + right,
+  };
+}
+
+// 読み込み済みカード（同じ見出し）に編集を反映。
+// 同見出しの全穴は同一本文を共有するので、編集後本文から各穴の問題文を直接再生成する（前後どちらの穴にも確実に反映）
+function applyEditLocally(c, newQ) {
+  const base = newQ.replace('〔_〕', `〔●${c.holeNum}〕`); // 全穴をマーカーにした見出し本文
+  for (const lc of baseCards) {
+    if (lc === c || lc.section !== c.section || lc.heading !== c.heading) continue;
+    const mk = `〔●${lc.holeNum}〕`;
+    if (base.includes(mk)) lc.question = base.replace(mk, '〔_〕');
+  }
+  clearSecTextCache();
+}
+
+async function saveEdit() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  const q = $('editQ').value, a = $('editA').value.trim();
+  $('editSaveBtn').disabled = true;
+  $('editMsg').textContent = '保存中...';
+  try {
+    await notion('/v1/pages/' + c.pageId, {
+      properties: {
+        '問題文': { rich_text: [{ text: { content: q.slice(0, 2000) } }] },
+        '正解': { rich_text: [{ text: { content: a.slice(0, 500) } }] },
+      },
+    }, 'PATCH');
+    c.question = q; c.answer = a;
+    // 読み込み済みの同見出しカードへ即時反映（前後どちらの穴にも確実に反映）
+    applyEditLocally(c, q);
+    saveState();
+    closeEdit();
+    renderCard();
+    toast('✓ 保存。他の穴へ反映中…', 'bg-emerald-600');
+    // 他の穴への反映も直列キューで実行（連続編集でも後の更新が最後に確定）
+    queueBgSync(() => propagateEdit(c, q));
+  } catch (e) {
+    $('editMsg').textContent = '⚠ ' + e.message;
+    $('editSaveBtn').disabled = false;
+    return;
+  }
+  $('editSaveBtn').disabled = false;
+}
+
+// ── 穴の新規追加（修復） ──
+// 現在の見出しの全文（穴を答えで埋めた素の文章）を復元
+function plainHeadingText(c) {
+  if (!c) return '';
+  let t = c.question.replace('〔_〕', c.answer || '〔_〕');
+  t = t.replace(/〔●(\d+)〕/g, (m, n) => {
+    const o = baseCards.find(x => x.section === c.section && x.holeNum === +n);
+    return o ? o.answer : '●';
+  });
+  return t;
+}
+function openAdd() {
+  const c = cards[queueIdx];
+  const sec = c ? c.section : (showSectionDone._sec || '');
+  $('addSecLbl').textContent = sec;
+  openAdd._sec = sec;
+  $('addHeading').value = c ? c.heading : '';
+  // 見出し全文を自動入力。穴にしたい語を〔_〕で囲み、その語を正解欄に入れるだけ
+  $('addQ').value = plainHeadingText(c);
+  $('addA').value = '';
+  $('addMsg').textContent = '';
+  $('editModal').classList.add('hidden');
+  $('addModal').classList.remove('hidden');
+}
+function closeAdd() { $('addModal').classList.add('hidden'); }
+
+// 背景同期を直列化（連続追加でも後の更新が最後に確定する）
+let _bgSync = Promise.resolve();
+let _bgPending = 0;
+function queueBgSync(fn) {
+  _bgPending++;
+  _bgSync = _bgSync.then(fn).then(() => {
+    if (--_bgPending === 0) toast('✓ 同期完了', 'bg-emerald-600');
+  }).catch(e => { _bgPending = Math.max(0, _bgPending - 1); toast('⚠ 同期エラー: ' + e.message, 'bg-rose-500'); });
+}
+
+// ── 選択して穴を追加・統合 ──
+let _holeSel = null; // {sec, heading, plainText, holeRanges:[{num,ps,pe,answer,pageId}]}
+function openHoleSel() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  if (buildHoleSel(c.section, c.heading)) {
+    $('editModal').classList.add('hidden');
+    $('holeSelModal').classList.remove('hidden');
+  }
+}
+// モーダルの本文表示を（再）構築。連続追加でも最新の状態を表示
+function buildHoleSel(sec, heading) {
+  const hcards = baseCards.filter(x => x.section === sec && x.heading === heading);
+  if (!hcards.length) return false;
+  const byNum = {}; hcards.forEach(x => byNum[x.holeNum] = x);
+  const rep = hcards[0];
+  const tmpl = rep.question.replace('〔_〕', `〔●${rep.holeNum}〕`);
+  // テンプレートを描画（穴は<mark>でハイライト）。plain位置を記録
+  const parts = tmpl.split(/(〔●\d+〕)/);
+  let html = '', pos = 0, plain = '', ranges = [];
+  for (const part of parts) {
+    const m = part.match(/^〔●(\d+)〕$/);
+    if (m) {
+      const num = +m[1], ans = (byNum[num] || {}).answer || '';
+      ranges.push({ num, ps: pos, pe: pos + ans.length, answer: ans, pageId: (byNum[num] || {}).pageId });
+      html += `<mark data-num="${num}" style="background:#fde68a;color:#92400e;border-radius:3px;padding:0 1px;">${esc(ans)}</mark>`;
+      plain += ans; pos += ans.length;
+    } else { html += esc(part); plain += part; pos += part.length; }
+  }
+  _holeSel = { sec, heading, plainText: plain, holeRanges: ranges, byNum, sel: null };
+  $('holeSelWhere').textContent = `${sec} ${heading}`;
+  $('holeSelText').innerHTML = html;
+  $('holeSelMsg').textContent = '本文をなぞって選択してください';
+  return true;
+}
+function closeHoleSel() { $('holeSelModal').classList.add('hidden'); _holeSel = null; }
+// 選択が変わるたびに範囲を記憶（iOSはボタン押下で選択が消えるため）
+document.addEventListener('selectionchange', () => {
+  if (!_holeSel || $('holeSelModal').classList.contains('hidden')) return;
+  const o = selOffsets($('holeSelText'));
+  if (o) {
+    _holeSel.sel = o;
+    $('holeSelMsg').textContent = `選択中: 「${_holeSel.plainText.slice(o[0], o[1]).slice(0, 30)}」`;
+  }
+});
+function selOffsets(root) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const r = sel.getRangeAt(0);
+  if (r.collapsed || !root.contains(r.commonAncestorContainer)) return null;
+  const off = (node, o) => {
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let t = 0, n;
+    while ((n = w.nextNode())) { if (n === node) return t + o; t += n.textContent.length; }
+    return t;
+  };
+  let a = off(r.startContainer, r.startOffset), b = off(r.endContainer, r.endOffset);
+  return a <= b ? [a, b] : [b, a];
+}
+async function applyHoleSelection() {
+  if (!_holeSel) return;
+  // ボタン押下で選択が消えるため、記憶しておいた範囲を優先して使う
+  const off = selOffsets($('holeSelText')) || _holeSel.sel;
+  if (!off) { $('holeSelMsg').textContent = '⚠ 本文から穴にする箇所を選択してください'; return; }
+  let [start, end] = off;
+  const { sec, heading, plainText, holeRanges } = _holeSel;
+  // 選択に重なる既存穴は丸ごと含める（部分選択を全体に拡張＝統合）
+  for (const h of holeRanges) {
+    if (h.ps < end && h.pe > start) { start = Math.min(start, h.ps); end = Math.max(end, h.pe); }
+  }
+  const newAnswer = plainText.slice(start, end).trim();
+  if (!newAnswer) { $('holeSelMsg').textContent = '⚠ 選択が空です'; return; }
+  const absorbed = holeRanges.filter(h => h.ps < end && h.pe > start);
+  const keep = holeRanges.filter(h => !(h.ps < end && h.pe > start));
+  const newNum = Math.max(0, ...baseCards.filter(c => c.section === sec).map(c => c.holeNum)) + 1;
+  // 新テンプレート（マーカー空間）を構築
+  const spans = keep.map(h => ({ ps: h.ps, pe: h.pe, mk: `〔●${h.num}〕` }))
+    .concat([{ ps: start, pe: end, mk: `〔●${newNum}〕` }])
+    .sort((x, y) => x.ps - y.ps);
+  let T = '', cur = 0;
+  for (const s of spans) { T += plainText.slice(cur, s.ps); T += s.mk; cur = s.pe; }
+  T += plainText.slice(cur);
+
+  $('holeSelBtn').disabled = true;
+  $('holeSelMsg').textContent = '作成中...';
+  const qNew = T.replace(`〔●${newNum}〕`, '〔_〕');
+  const id = `${sec}_a${Date.now().toString().slice(-6)}`;
+  try {
+    // 新しい穴を作成（pageIdが必要なのでここだけ待つ）
+    const res = await notion('/v1/pages', {
+      parent: { database_id: cfg.db }, properties: {
+        '穴ID': { title: [{ text: { content: id } }] },
+        '題番号': { rich_text: [{ text: { content: sec } }] },
+        '題名': { rich_text: [{ text: { content: (SECTION_TITLES[sec] || '').slice(0, 500) } }] },
+        '大見出し': { rich_text: [{ text: { content: heading.slice(0, 500) } }] },
+        '問題文': { rich_text: [{ text: { content: qNew.slice(0, 2000) } }] },
+        '正解': { rich_text: [{ text: { content: newAnswer.slice(0, 500) } }] },
+        '穴番号': { number: newNum }, '重要度': { select: { name: '★' } },
+        '次回出題日': { date: { start: todayStr() } }, '間隔_日数': { number: 1 },
+        '難易度係数': { number: 2.5 }, '正答回数': { number: 0 }, '出題回数': { number: 0 },
+      },
+    });
+    // ローカルを即時更新してUIを反映（残り穴のNotion更新は背景で実行）
+    for (const h of keep) {
+      const lc = baseCards.find(x => x.pageId === h.pageId);
+      if (lc) lc.question = T.replace(`〔●${h.num}〕`, '〔_〕');
+    }
+    for (const h of absorbed) {
+      baseCards = baseCards.filter(x => x.pageId !== h.pageId);
+      const ci = cards.findIndex(x => x.pageId === h.pageId); if (ci >= 0) cards.splice(ci, 1);
+      const wc = wrongCards.findIndex(x => x.pageId === h.pageId); if (wc >= 0) wrongCards.splice(wc, 1);
+    }
+    const newCard = {
+      pageId: res.id, id, section: sec, title: SECTION_TITLES[sec] || '', heading,
+      question: qNew, answer: newAnswer, holeNum: newNum, rank: '★',
+      interval: 1, ef: 2.5, correct: 0, total: 0,
+    };
+    baseCards.push(newCard);
+    resortSection(sec);
+    const curId = cards[queueIdx] ? cards[queueIdx].id : null;
+    const idxs = cards.map((c, i) => c.section === sec ? i : -1).filter(i => i >= 0);
+    if (idxs.length) {
+      const lo = idxs[0], hi = idxs[idxs.length - 1];
+      const present = new Set(cards.filter(c => c.section === sec).map(c => c.id));
+      present.add(newCard.id);
+      const ordered = orderSectionCards(baseCards.filter(c => c.section === sec && present.has(c.id)));
+      cards.splice(lo, hi - lo + 1, ...ordered);
+    } else {
+      cards.splice(queueIdx + 1, 0, newCard);
+    }
+    if (curId) { const ni = cards.findIndex(c => c.id === curId); if (ni >= 0) queueIdx = ni; }
+    clearSecTextCache();
+    saveState();
+    renderCard();
+    // モーダルは閉じず、最新状態で再描画して連続追加できるようにする
+    buildHoleSel(sec, heading);
+    toast(absorbed.length ? `✓ ${absorbed.length}個の穴を統合（続けて選択可）` : '✓ 穴を追加（続けて選択可）', 'bg-emerald-600');
+    // 背景でNotionの残り更新を「順番待ち」で実行（連続追加でも後の更新が必ず最後に確定）
+    queueBgSync(async () => {
+      for (const h of keep) {
+        if (!h.pageId) continue;
+        const q = T.replace(`〔●${h.num}〕`, '〔_〕');
+        await notion('/v1/pages/' + h.pageId, { properties: { '問題文': { rich_text: [{ text: { content: q.slice(0, 2000) } }] } } }, 'PATCH');
+      }
+      for (const h of absorbed) {
+        if (!h.pageId) continue;
+        await notion('/v1/pages/' + h.pageId, { archived: true }, 'PATCH');
+      }
+    });
+  } catch (e) {
+    $('holeSelMsg').textContent = '⚠ ' + e.message;
+  }
+  $('holeSelBtn').disabled = false;
+}
+async function saveAdd() {
+  const sec = openAdd._sec;
+  const heading = $('addHeading').value.trim();
+  const q = $('addQ').value.trim();
+  const a = $('addA').value.trim();
+  if (!q || !a) { $('addMsg').textContent = '⚠ 問題文と正解は必須です'; return; }
+  if (!q.includes('〔_〕')) { $('addMsg').textContent = '⚠ 問題文に答える箇所〔_〕を入れてください'; return; }
+  $('addSaveBtn').disabled = true;
+  $('addMsg').textContent = '追加中...';
+  try {
+    // 既存の穴番号の最大+1。穴IDの連番衝突を避けるためタイムスタンプ付き
+    const maxHole = Math.max(0, ...baseCards.filter(c => c.section === sec).map(c => c.holeNum));
+    const holeNum = maxHole + 1;
+    const id = `${sec}_a${Date.now().toString().slice(-6)}`;
+    const props = {
+      '穴ID': { title: [{ text: { content: id } }] },
+      '題番号': { rich_text: [{ text: { content: sec } }] },
+      '題名': { rich_text: [{ text: { content: (SECTION_TITLES[sec] || '').slice(0, 500) } }] },
+      '大見出し': { rich_text: [{ text: { content: heading.slice(0, 500) } }] },
+      '問題文': { rich_text: [{ text: { content: q.slice(0, 2000) } }] },
+      '正解': { rich_text: [{ text: { content: a.slice(0, 500) } }] },
+      '穴番号': { number: holeNum },
+      '重要度': { select: { name: '★' } },
+      '次回出題日': { date: { start: todayStr() } },
+      '間隔_日数': { number: 1 },
+      '難易度係数': { number: 2.5 },
+      '正答回数': { number: 0 },
+      '出題回数': { number: 0 },
+    };
+    const res = await notion('/v1/pages', { parent: { database_id: cfg.db }, properties: props });
+    const newCard = {
+      pageId: res.id, id, section: sec, title: SECTION_TITLES[sec] || '',
+      heading, question: q, answer: a, holeNum, rank: '★',
+      interval: 1, ef: 2.5, correct: 0, total: 0,
+    };
+    // 今日のキューに即時挿入（現在位置の直後）
+    baseCards.push(newCard);
+    cards.splice(queueIdx + 1, 0, newCard);
+    clearSecTextCache();
+    saveState();
+    closeAdd();
+    toast('✓ 穴を追加しました（次に出題されます）', 'bg-emerald-600');
+    if ($('quizBox').classList.contains('hidden')) { /* パネル表示中は何もしない */ }
+    else renderCard();
+  } catch (e) {
+    $('addMsg').textContent = '⚠ ' + e.message;
+  }
+  $('addSaveBtn').disabled = false;
+}
+
+// 同じ題のすべての穴に問題文の修正を反映する
+async function propagateEdit(c, newQ) {
+  // 編集後本文（全穴をマーカー化した見出し本文）から、同見出しの各穴の問題文を直接再生成
+  const base = newQ.replace('〔_〕', `〔●${c.holeNum}〕`);
+
+  // 同じ題の全穴をNotionから取得
+  let pages = [], cursor;
+  do {
+    const body = {
+      page_size: 100,
+      filter: { property: '題番号', rich_text: { equals: c.section } },
+    };
+    if (cursor) body.start_cursor = cursor;
+    const j = await notion(`/v1/databases/${cfg.db}/query`, body);
+    pages = pages.concat(j.results);
+    cursor = j.has_more ? j.next_cursor : undefined;
+  } while (cursor);
+
+  let n = 0;
+  for (const pg of pages) {
+    if (pg.id === c.pageId) continue;
+    // 同じ見出しの穴だけ対象（他の見出しは本文が異なる）
+    if (prop(pg.properties, '大見出し', 'rich_text') !== c.heading) continue;
+    const hn = prop(pg.properties, '穴番号', 'number');
+    const mk = `〔●${hn}〕`;
+    if (!base.includes(mk)) continue;
+    const fixed = base.replace(mk, '〔_〕');
+    const text = prop(pg.properties, '問題文', 'rich_text');
+    if (fixed === text) continue; // 変化なし
+    await notion('/v1/pages/' + pg.id, {
+      properties: { '問題文': { rich_text: [{ text: { content: fixed.slice(0, 2000) } }] } },
+    }, 'PATCH');
+    n++;
+    const lc = baseCards.find(x => x.pageId === pg.id);
+    if (lc) lc.question = fixed;
+  }
+  if (n) { clearSecTextCache(); saveState(); }
+  return n;
+}
+
+// ── コンフェッティ ──
+function confetti() {
+  const colors = ['#f43f5e', '#6366f1', '#22c55e', '#eab308', '#a855f7', '#06b6d4'];
+  for (let i = 0; i < 26; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.background = colors[i % colors.length];
+    el.style.animationDuration = (0.9 + Math.random() * 0.8) + 's';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2000);
+  }
+}
+
+// ── 分析 ──
+function tidSort(a, b) {
+  const [a1, a2] = a.split('-').map(Number), [b1, b2] = b.split('-').map(Number);
+  return a1 - b1 || a2 - b2;
+}
+function renderStats() {
+  const box = $('view-stats');
+  // 集計元: 累計=Notion全題集計（無ければhistory）／本日・過去7日=ローカル回答ログ
+  const STAT = statPeriod === 'today' ? statsFromLog(1)
+    : statPeriod === '7d' ? statsFromLog(7)
+      : ((fullStats && fullStats.secs) ? fullStats.secs : history);
+  const usingFull = statPeriod === 'all' && !!(fullStats && fullStats.secs);
+  const rangeSel = selectedSections();
+  let secs = Object.keys(STAT).sort(tidSort);
+  if (statRangeOnly && rangeSel) secs = secs.filter(s => rangeSel.includes(s));
+  let totalAns = 0, totalOk = 0;
+  for (const s of secs) { totalAns += STAT[s].ok + STAT[s].ng; totalOk += STAT[s].ok; }
+
+  // 弱点穴（今日読み込んだカードから: 2回以上出題かつ正答率60%未満 or 前回不正解）
+  const weak = cards
+    .filter(c => (c.total >= 2 && c.correct / c.total < 0.6) || wrongMap[c.id])
+    .sort((a, b) => (a.total ? a.correct / a.total : 0) - (b.total ? b.correct / b.total : 0))
+    .slice(0, 15);
+
+  // 未学習・薄い題（回答数が少ない題）
+  const thin = secs.filter(s => STAT[s].ok + STAT[s].ng < 10);
+  const aggInfo = statPeriod === 'today' ? '本日の回答（この端末）'
+    : statPeriod === '7d' ? '過去7日間の回答（この端末）'
+      : usingFull
+        ? `累計（${new Date(fullStats.ts).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}時点・端末共通）`
+        : '累計：下のボタンでNotionから集計できます';
+  const periodBtns = [['today', '本日'], ['7d', '過去7日'], ['all', '累計']]
+    .map(([p, lbl]) => `<button onclick="setStatPeriod('${p}')" class="px-3 py-1 text-xs rounded-lg pressable ${statPeriod === p ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700'}">${lbl}</button>`).join('');
+
+  const pLbl = statPeriod === 'today' ? '本日' : statPeriod === '7d' ? '7日間' : '累計';
+  box.innerHTML = `
+  <div class="grid grid-cols-3 gap-2">
+    <div class="bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-2xl p-3 text-center shadow">
+      <div class="text-2xl font-extrabold">${totalAns}</div><div class="text-[11px] opacity-90">${pLbl}回答</div>
+    </div>
+    <div class="bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl p-3 text-center shadow">
+      <div class="text-2xl font-extrabold">${totalAns ? Math.round(totalOk / totalAns * 100) : 0}%</div><div class="text-[11px] opacity-90">${pLbl}正答率</div>
+    </div>
+    <div class="bg-gradient-to-br from-rose-500 to-pink-600 text-white rounded-2xl p-3 text-center shadow">
+      <div class="text-2xl font-extrabold">${Object.keys(wrongMap).length}</div><div class="text-[11px] opacity-90">要復習の穴</div>
+    </div>
+  </div>
+
+  ${(() => {
+    const weak = weekWeakSections();
+    if (!weak.length) return '';
+    return `<div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-4 ring-2 ring-rose-300 dark:ring-rose-800">
+      <h2 class="font-bold mb-1">⚡ 週間弱点（過去7日で正答率90%未満の題）</h2>
+      <div class="flex flex-wrap gap-1.5 mb-2">${weak.map(x =>
+      `<span class="text-[11px] px-2 py-0.5 rounded-full ${x.rate < 0.7 ? 'bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300' : 'bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-300'} font-bold">${x.s}${rankBadge(x.s)} ${Math.round(x.rate * 100)}%(${x.t})</span>`).join('')}
+      </div>
+      <button onclick="loadWeekWeak()" class="w-full py-3 bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-xl font-bold shadow pressable">⚡ この${weak.length}題を集中出題（範囲に設定）</button>
+    </div>`;
+  })()}
+
+  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-4">
+    <h2 class="font-bold mb-1">🎯 弱点（正答率が低い穴）</h2>
+    <div class="flex gap-1.5 mb-2 flex-wrap">
+      <button onclick="loadWeakness(0.7)" class="px-3 py-1.5 text-xs bg-rose-500 text-white rounded-lg font-bold pressable">🎯 見出し70%未満＋手動マーク</button>
+      <button onclick="loadWeakness(0.9)" class="px-3 py-1.5 text-xs bg-orange-500 text-white rounded-lg font-bold pressable">🎯 見出し90%未満＋手動マーク</button>
+    </div>
+    <div class="text-[11px] text-slate-400 mb-2">本日の出題対象のうち、2回以上出題で正答率60%未満／前回不正解</div>
+    ${weak.length === 0 ? '<div class="text-sm text-slate-400">弱点はありません 👏</div>' :
+      weak.map(c => `
+      <button class="w-full text-left py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-0" onclick="jumpTo('${c.id}')">
+        <div class="flex justify-between text-sm">
+          <span class="font-medium">${c.section} #${c.holeNum} <span class="text-rose-500 font-bold">${esc(c.answer).slice(0, 16)}</span></span>
+          <span class="text-xs ${c.total && c.correct / c.total < .4 ? 'text-rose-500' : 'text-amber-500'} font-bold">${c.total ? Math.round(c.correct / c.total * 100) + '%' : '前回✗'}</span>
+        </div>
+        <div class="text-[11px] text-slate-400">${esc(c.title)}（${c.correct}/${c.total}回）</div>
+      </button>`).join('')}
+  </div>
+
+  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-4">
+    <h2 class="font-bold mb-1">📚 題ごとの正答率（タップで見出し別に展開）</h2>
+    <div class="flex gap-1.5 mb-1.5 flex-wrap">${periodBtns}
+      ${rangeSel ? `<button onclick="toggleStatRange()" class="px-3 py-1 text-xs rounded-lg pressable ${statRangeOnly ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700'}">📑 範囲のみ</button>` : ''}
+    </div>
+    <div class="text-[11px] text-slate-400 mb-1">${aggInfo}${statRangeOnly && rangeSel ? '・選択範囲のみ' : ''}</div>
+    ${statPeriod === 'all' ? '<button onclick="aggregateAllFromNotion()" class="mb-2 px-3 py-1.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-lg pressable">📊 Notionから全題を集計（更新）</button>' : ''}
+    ${secs.length === 0 ? '<div class="text-sm text-slate-400">まだ回答データがありません</div>' :
+      secs.map(s => {
+        const h = STAT[s], t = h.ok + h.ng, rate = t ? Math.round(h.ok / t * 100) : 0;
+        const color = rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-rose-500';
+        const heads = h.heads || {};
+        // 穴のない見出しも表示するため、柱構成(SECTION_HEADINGS)の全見出しと回答データの見出しを合算
+        const allHeads = (typeof SECTION_HEADINGS !== 'undefined' && SECTION_HEADINGS[s]) || [];
+        const headName = {}; allHeads.forEach(([n, name]) => headName[n] = name);
+        const hnums = [...new Set([...Object.keys(heads), ...allHeads.map(x => String(x[0]))])]
+          .sort((a, b) => Number(a) - Number(b));
+        const sub = hnums.map(n => {
+          const hh = heads[n] || { ok: 0, ng: 0 }, ht = hh.ok + hh.ng, hr = ht ? Math.round(hh.ok / ht * 100) : 0;
+          const hc = hr >= 80 ? 'bg-emerald-400' : hr >= 50 ? 'bg-amber-400' : 'bg-rose-400';
+          const badge = hr < 50 && ht ? '⚠' : '';
+          const nm = headName[n] ? `<span class="text-[10px] text-slate-400 ml-1 truncate">${esc(String(headName[n]).slice(0, 14))}</span>` : '';
+          if (ht === 0) {
+            return `<div class="flex items-center gap-2 py-0.5 pl-3 opacity-60">
+              <span class="text-[11px] w-8 shrink-0 text-slate-500">〔${n}〕</span>
+              <div class="flex-1 text-[11px] text-slate-400 truncate">${headName[n] ? esc(String(headName[n]).slice(0, 22)) : ''}</div>
+              <span class="text-[11px] w-16 text-right text-slate-400">未回答</span>
+            </div>`;
+          }
+          return `<div class="flex items-center gap-2 py-0.5 pl-3">
+            <span class="text-[11px] w-8 shrink-0 text-slate-500">〔${n}〕${nm}</span>
+            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full ${hc}" style="width:${hr}%"></div>
+            </div>
+            <span class="text-[11px] w-16 text-right ${hr < 50 ? 'text-rose-500 font-bold' : 'text-slate-400'}">${badge}${hr}%(${ht})</span>
+          </div>`;
+        }).join('');
+        return `<details class="mb-2 group">
+        <summary class="cursor-pointer list-none">
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="font-medium">▸ ${s}${rankBadge(s)} ${esc(h.title || '')}</span>
+            <span class="text-slate-400">${t}回・<b class="text-slate-600 dark:text-slate-300">${rate}%</b></span>
+          </div>
+          <div class="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div class="h-full ${color} transition-all" style="width:${rate}%"></div>
+          </div>
+        </summary>
+        <div class="mt-1.5 mb-2">${sub || '<div class="text-[11px] text-slate-400 pl-3">見出し別データなし</div>'}</div>
+        </details>`;
+      }).join('')}
+    ${thin.length ? `<div class="mt-3 text-[11px] text-amber-600 dark:text-amber-400">⚠ 回答10回未満の薄い題: ${thin.join('、')}</div>` : ''}
+  </div>`;
+}
+function jumpTo(id) {
+  let i = cards.findIndex((c, idx) => idx >= queueIdx && c.id === id);
+  if (i < 0) i = cards.findIndex(c => c.id === id); // 前方も探す
+  if (i >= 0) {
+    queueIdx = i; saveState();
+    $('quizBox').classList.remove('hidden'); $('quizBox').classList.add('flex');
+    $('doneBox').classList.add('hidden'); $('doneBox').classList.remove('flex');
+    $('secDoneBox').classList.add('hidden'); $('secDoneBox').classList.remove('flex');
+    showTab('quiz'); renderCard();
+  } else toast('この穴は本日の出題対象に含まれていません', 'bg-slate-600');
+}
+
+// ── 柱（構成）想起モード ──
+let pillarSRS = JSON.parse(localStorage.getItem('pillarSRS') || '{}'); // sec -> {interval, ef, next, correct, total}
+let pillarQueue = [];
+let pillarIdx = 0;
+let pillarSession = { ok: 0, ng: 0 };
+let pillarStep = 0;        // 何項目まで表示したか
+let pillarLevel = +(localStorage.getItem('pillarLevel') || 1); // 1=柱のみ 2=柱+中見出し
+let pillarCurItems = [];   // 現在の題の表示項目（柱・中見出しを平坦化）
+// 柱1本ごとの成績（'題番号|項目キー' -> {c:正答数, t:出題数}）。穴埋めと同じ粒度で記録
+let pillarItemSRS = JSON.parse(localStorage.getItem('pillarItemSRS') || '{}');
+let pillarItemOk = {};     // 現在の題での柱ごとの判定
+let pillarPhase = 'reveal'; // reveal=めくる待ち / judge=柱1本の判定待ち / all=全部表示後の一括判定
+function pItemKey(sec, key) { return sec + '|' + key; }
+function pItemRate(sec, key) {
+  const r = pillarItemSRS[pItemKey(sec, key)];
+  return r && r.t ? Math.round(r.c / r.t * 100) : null;
+}
+
+function setPillarLevel(lv) {
+  pillarLevel = lv;
+  localStorage.setItem('pillarLevel', lv);
+  ['lvl1', 'lvl2'].forEach((id, i) => {
+    const on = (i + 1) === lv;
+    $(id).className = 'py-2.5 rounded-xl font-bold pressable ' + (i === 0 ? 'text-sm ' : 'text-xs ') +
+      (on ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700');
+  });
+}
+function subMarkChar(m) { return String.fromCharCode(0x2474 + (m - 1)); }
+function pillarOvAll() { return JSON.parse(localStorage.getItem('pillarOv') || '{}'); }
+function pillarItemsFor(sec) {
+  const ov = pillarOvAll()[sec] || {};
+  const heads = SECTION_HEADINGS[sec] || [];
+  const subs = (typeof SECTION_SUB !== 'undefined' && SECTION_SUB[sec]) || {};
+  const items = [];
+  for (const [n, name, star] of heads) {
+    items.push({ type: 'h', key: 'h' + n, n, star: star || '', name: ov['h' + n] != null ? ov['h' + n] : name });
+    if (pillarLevel >= 2) {
+      for (const [m, sname] of (subs[n] || [])) {
+        const k = 's' + n + '_' + m;
+        items.push({ type: 's', key: k, n, m, name: ov[k] != null ? ov[k] : sname });
+      }
+    }
+  }
+  return items;
+}
+
+function pillarScope() {
+  const sel = selectedSections();
+  const all = Object.keys(SECTION_HEADINGS);
+  return sel ? all.filter(s => sel.includes(s)) : all;
+}
+function pillarDueList() {
+  const t = todayStr();
+  return pillarScope().filter(s => {
+    const r = pillarSRS[s];
+    return !r || !r.next || r.next <= t;
+  });
+}
+function renderPillarStart() {
+  $('pillarCard').classList.add('hidden'); $('pillarCard').classList.remove('flex');
+  $('pillarDone').classList.add('hidden'); $('pillarDone').classList.remove('flex');
+  $('pillarStart').classList.remove('hidden'); $('pillarStart').classList.add('flex');
+  setPillarLevel(pillarLevel);
+  const scope = pillarScope(), due = pillarDueList();
+  const studied = scope.filter(s => pillarSRS[s] && pillarSRS[s].total > 0).length;
+  // 柱ごとの成績から、言えなかったことが多い柱を集計
+  let ptot = 0, pok = 0, weak = [];
+  for (const s of scope) {
+    for (const it of pillarItemsFor(s)) {
+      const r = pillarItemSRS[pItemKey(s, it.key)];
+      if (!r || !r.t) continue;
+      ptot += r.t; pok += r.c;
+      const rate = r.c / r.t;
+      if (rate < 0.9) weak.push({ s, n: it.n, name: it.name, rate, t: r.t });
+    }
+  }
+  weak.sort((a, b) => a.rate - b.rate);
+  const info = $('pillarDueInfo');
+  info.innerHTML = `範囲 ${scope.length}題中 ／ 今日の復習対象 ${due.length}題 ／ 学習済み ${studied}題`
+    + (ptot ? `<br><span class="text-[11px]">柱の正答率 <b>${Math.round(pok / ptot * 100)}%</b>（${ptot}回）</span>` : '')
+    + (weak.length ? `<div class="mt-2 text-left text-[11px] text-slate-500 dark:text-slate-400">
+        <div class="font-bold mb-0.5 text-rose-500">⚡ 言えていない柱（90%未満）${weak.length}本</div>
+        ${weak.slice(0, 8).map(w => `<div class="truncate">・${w.s}〔${w.n}〕${esc(String(w.name).slice(0, 16))} <b class="${w.rate < 0.7 ? 'text-rose-500' : 'text-amber-500'}">${Math.round(w.rate * 100)}%</b>(${w.t})</div>`).join('')}
+        ${weak.length > 8 ? `<div class="opacity-70">ほか${weak.length - 8}本</div>` : ''}
+      </div>` : '');
+}
+function startPillar(all) {
+  const list = all ? pillarScope() : pillarDueList();
+  if (list.length === 0) { toast('今日の復習対象はありません 👏（「範囲内すべて」で練習可）', 'bg-emerald-600'); return; }
+  // 題番号順をシャッフル
+  pillarQueue = list.slice();
+  for (let i = pillarQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pillarQueue[i], pillarQueue[j]] = [pillarQueue[j], pillarQueue[i]];
+  }
+  pillarIdx = 0; pillarSession = { ok: 0, ng: 0, wrong: [] };
+  $('pillarStart').classList.add('hidden'); $('pillarStart').classList.remove('flex');
+  $('pillarDone').classList.add('hidden'); $('pillarDone').classList.remove('flex');
+  $('pillarCard').classList.remove('hidden'); $('pillarCard').classList.add('flex');
+  pillarRender();
+}
+function pillarRender() {
+  if (pillarIdx >= pillarQueue.length) { pillarDone(); return; }
+  const sec = pillarQueue[pillarIdx];
+  $('pillarSecNo').textContent = '問題 ' + sec;
+  $('pillarTitlePrompt').textContent = SECTION_TITLES[sec] || '';
+  pillarCurItems = pillarItemsFor(sec);
+  $('pillarCount').textContent = pillarCurItems.length;
+  $('pillarProg').textContent = `${pillarIdx} / ${pillarQueue.length}`;
+  const r = pillarSRS[sec];
+  const rate = r && r.total ? Math.round(r.correct / r.total * 100) : null;
+  $('pillarDueBadge').textContent = r && r.total ? `正答率${rate}%` : '初';
+  $('pillarDueBadge').className = 'text-[11px] font-bold px-2 py-0.5 rounded-full ' +
+    (rate === null ? 'bg-slate-400 text-white' : rate >= 80 ? 'bg-emerald-500 text-white' : rate >= 50 ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white');
+  pillarStep = 0;
+  pillarItemOk = {};
+  pillarPhase = 'reveal';
+  $('pillarList').innerHTML = '';
+  $('pillarRevealRow').classList.remove('hidden');
+  $('pillarReveal').textContent = `▶ めくる (1/${pillarCurItems.length})`;
+  $('pillarJudge').classList.add('hidden');
+  $('pillarJudgeHint').classList.add('hidden');
+}
+function pillarAppendItem(it, idx) {
+  const sec = pillarQueue[pillarIdx];
+  const isSub = it.type === 's';
+  const li = document.createElement('li');
+  li.id = 'pitem' + idx;
+  li.className = 'pop flex gap-2 leading-relaxed items-start ' + (isSub ? 'text-[14px] pl-5' : 'text-[15px] font-bold');
+  const mark = isSub ? subMarkChar(it.m) : '〔' + it.n + '〕';
+  const rate = pItemRate(sec, it.key);
+  const rcls = rate == null ? '' : rate >= 90 ? 'text-emerald-500' : rate >= 70 ? 'text-amber-500' : 'text-rose-500';
+  li.innerHTML =
+    `<span class="${isSub ? 'text-slate-400' : 'text-indigo-600 dark:text-indigo-400'} shrink-0">${mark}</span>` +
+    `<span class="flex-1">${esc(it.name)}${it.star ? `<span class="text-amber-500 ml-1 text-[12px]">${it.star}</span>` : ''}</span>` +
+    (rate == null ? '' : `<span class="text-[10px] ${rcls} shrink-0 font-bold">${rate}%</span>`) +
+    `<span class="pjudge text-[13px] shrink-0 w-3.5 text-center"></span>` +
+    `<span class="text-[11px] text-slate-300 shrink-0">✎</span>`;
+  li.onclick = () => editPillarItem(sec, it.key, it.name);
+  const list = $('pillarList');
+  list.appendChild(li);
+  list.scrollTop = list.scrollHeight;   // めくった柱が必ず見えるように最下部へ追従
+}
+function pillarRenderList() {
+  $('pillarList').innerHTML = '';
+  for (let i = 0; i < pillarStep; i++) {
+    pillarAppendItem(pillarCurItems[i], i);
+    const it = pillarCurItems[i];
+    if (it.key in pillarItemOk) pillarMarkItem(i, pillarItemOk[it.key]);
+  }
+}
+// 柱1本をめくって、その柱の判定待ちにする
+function pillarNextHeading() {
+  if (pillarStep >= pillarCurItems.length) return;
+  pillarAppendItem(pillarCurItems[pillarStep], pillarStep);
+  pillarStep++;
+  pillarPhase = 'judge';
+  $('pillarRevealRow').classList.add('hidden');
+  $('pillarJudge').classList.remove('hidden');
+  const hint = $('pillarJudgeHint');
+  hint.textContent = `この柱を言えましたか？（${pillarStep}/${pillarCurItems.length}）`;
+  hint.classList.remove('hidden');
+}
+// 残りを全部表示して、題全体で一括判定（柱ごとの記録は付かない）
+function pillarRevealAll() {
+  while (pillarStep < pillarCurItems.length) { pillarAppendItem(pillarCurItems[pillarStep], pillarStep); pillarStep++; }
+  pillarPhase = 'all';
+  $('pillarRevealRow').classList.add('hidden');
+  $('pillarJudge').classList.remove('hidden');
+  const hint = $('pillarJudgeHint');
+  hint.textContent = 'この題全体の判定（柱ごとの記録は付きません）';
+  hint.classList.remove('hidden');
+}
+function pillarMarkItem(idx, ok) {
+  const li = document.getElementById('pitem' + idx);
+  if (!li) return;
+  const b = li.querySelector('.pjudge');
+  if (b) {
+    b.textContent = ok ? '✓' : '✗';
+    b.className = 'pjudge text-[13px] shrink-0 w-3.5 text-center font-bold ' + (ok ? 'text-emerald-500' : 'text-rose-500');
+  }
+  if (!ok) li.classList.add('text-rose-600', 'dark:text-rose-400');
+}
+// 判定ボタン（柱ごと／一括を自動で振り分け）
+function pillarJudgeBtn(ok) {
+  if (pillarPhase === 'judge') pillarGradeItem(ok);
+  else pillarFinishSection(ok);
+}
+// 柱1本の判定を記録して次へ
+function pillarGradeItem(ok) {
+  const sec = pillarQueue[pillarIdx];
+  const idx = pillarStep - 1;
+  const it = pillarCurItems[idx];
+  if (!it) return;
+  pillarItemOk[it.key] = ok;
+  const k = pItemKey(sec, it.key);
+  const r = pillarItemSRS[k] || { c: 0, t: 0 };
+  pillarItemSRS[k] = { c: r.c + (ok ? 1 : 0), t: r.t + 1 };
+  localStorage.setItem('pillarItemSRS', JSON.stringify(pillarItemSRS));
+  pillarMarkItem(idx, ok);
+  if (pillarStep >= pillarCurItems.length) {
+    // 全柱終了。1本でも言えなければ、その題は「言えなかった」扱い
+    const vals = Object.values(pillarItemOk);
+    pillarFinishSection(vals.length > 0 && vals.every(v => v));
+  } else {
+    pillarPhase = 'reveal';
+    $('pillarJudge').classList.add('hidden');
+    $('pillarJudgeHint').classList.add('hidden');
+    $('pillarRevealRow').classList.remove('hidden');
+    $('pillarReveal').textContent = `▶ めくる (${pillarStep + 1}/${pillarCurItems.length})`;
+  }
+}
+// 解答しながらタイトルを訂正（この端末に保存）
+function editPillarItem(sec, key, cur) {
+  const v = prompt('柱・中見出しのタイトルを修正', cur);
+  if (v === null) return;
+  const all = pillarOvAll();
+  (all[sec] = all[sec] || {})[key] = v.trim();
+  localStorage.setItem('pillarOv', JSON.stringify(all));
+  pillarCurItems = pillarItemsFor(sec);
+  pillarRenderList();
+  toast('✓ 修正を保存（この端末）', 'bg-emerald-600');
+}
+function pillarSM2(sec, ok) {
+  const r = pillarSRS[sec] || { interval: 1, ef: 2.5, correct: 0, total: 0 };
+  let interval = r.interval || 1, ef = r.ef || 2.5;
+  if (ok) {
+    ef = Math.min(3.0, ef + 0.1);
+    interval = (r.total === 0 || interval <= 1) ? (r.total === 0 ? 1 : 3) : Math.round(interval * ef);
+  } else { ef = Math.max(1.3, ef - 0.2); interval = 1; }
+  interval = Math.max(1, Math.min(interval, intervalCap(), daysToExam() || 1));
+  const d = new Date(); d.setDate(d.getDate() + interval);
+  const next = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  pillarSRS[sec] = {
+    interval, ef, next,
+    correct: (r.correct || 0) + (ok ? 1 : 0),
+    total: (r.total || 0) + 1,
+  };
+  localStorage.setItem('pillarSRS', JSON.stringify(pillarSRS));
+}
+function pillarFinishSection(ok) {
+  const sec = pillarQueue[pillarIdx];
+  pillarSM2(sec, ok);
+  if (ok) { pillarSession.ok++; confetti(); }
+  else { pillarSession.ng++; if (!pillarSession.wrong) pillarSession.wrong = []; pillarSession.wrong.push(sec); }
+  pillarIdx++;
+  pillarRender();
+}
+function pillarGrade(ok) { pillarFinishSection(ok); }
+function pillarDone() {
+  $('pillarCard').classList.add('hidden'); $('pillarCard').classList.remove('flex');
+  $('pillarDone').classList.remove('hidden'); $('pillarDone').classList.add('flex');
+  const t = pillarSession.ok + pillarSession.ng;
+  $('pillarDoneStats').textContent = `言えた ${pillarSession.ok} ／ 言えなかった ${pillarSession.ng}` +
+    (t ? `（${Math.round(pillarSession.ok / t * 100)}%）` : '');
+  const wrong = (pillarSession.wrong || []);
+  $('pillarRetryWrong').classList.toggle('hidden', wrong.length === 0);
+}
+function pillarRetryWrong() {
+  const wrong = [...new Set(pillarSession.wrong || [])];
+  if (!wrong.length) return;
+  pillarQueue = wrong;
+  pillarIdx = 0; pillarSession = { ok: 0, ng: 0, wrong: [] };
+  $('pillarStart').classList.add('hidden'); $('pillarStart').classList.remove('flex');
+  $('pillarDone').classList.add('hidden'); $('pillarDone').classList.remove('flex');
+  $('pillarCard').classList.remove('hidden'); $('pillarCard').classList.add('flex');
+  toast('😤 間違えた題だけ復習', 'bg-amber-500');
+  pillarRender();
+}
+function pillarRepeat() {
+  if (pillarQueue.length === 0) { renderPillarStart(); return; }
+  // 直前と同じ範囲をシャッフルし直して再開
+  for (let i = pillarQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pillarQueue[i], pillarQueue[j]] = [pillarQueue[j], pillarQueue[i]];
+  }
+  pillarIdx = 0; pillarSession = { ok: 0, ng: 0, wrong: [] };
+  $('pillarStart').classList.add('hidden'); $('pillarStart').classList.remove('flex');
+  $('pillarDone').classList.add('hidden'); $('pillarDone').classList.remove('flex');
+  $('pillarCard').classList.remove('hidden'); $('pillarCard').classList.add('flex');
+  toast('🔁 もう一度復習', 'bg-violet-500');
+  pillarRender();
+}
+function pillarBackStart() { renderPillarStart(); }
+
+// ── 範囲選択 ──
+const SECTION_TITLES = {'1-1':'課税の対象','1-2':'国内取引の判定','1-3':'非課税','1-4':'輸出免税等'};
+const ALL_SECTIONS = Object.keys(SECTION_TITLES);
+function renderRange() {
+  const sel = selectedSections() || ALL_SECTIONS;
+  $('rangeList').innerHTML = ALL_SECTIONS.map(s =>
+    `<label class="flex items-start gap-2 py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
+      <input type="checkbox" class="rangecb w-4 h-4 mt-0.5 shrink-0 accent-indigo-600" value="${s}" ${sel.includes(s) ? 'checked' : ''}>
+      <span class="leading-snug"><b class="text-indigo-600 dark:text-indigo-400">${s}</b>${rankBadge(s)}
+        <span class="text-[12px] text-slate-600 dark:text-slate-300">${esc(SECTION_TITLES[s] || '')}</span></span>
+    </label>`).join('');
+  renderRankFilter();
+  renderPresets();
+}
+function rangeAll(on) {
+  document.querySelectorAll('.rangecb').forEach(cb => cb.checked = on);
+  rankFilterOn = {};
+  if (on) RANK_ORDER.forEach(r => rankFilterOn[r] = true);
+  renderRankFilter();
+}
+// ── ランクフィルタ（タップでそのランクの題を一括選択/解除）──
+const RANK_ORDER = ['特A', 'A+', 'A', 'B', 'C', '準C', '－'];
+let rankFilterOn = {};
+function secRank(s) { return SECTION_RANK[s] || '－'; }
+function toggleRankFilter(r) {
+  rankFilterOn[r] = !rankFilterOn[r];
+  document.querySelectorAll('.rangecb').forEach(cb => {
+    if (secRank(cb.value) === r) cb.checked = !!rankFilterOn[r];
+  });
+  renderRankFilter();
+}
+function renderRankFilter() {
+  const el = $('rankFilter');
+  if (!el) return;
+  el.innerHTML = '<span class="text-[11px] text-slate-400">ランクで選択:</span>' + RANK_ORDER.map(r => {
+    const cnt = ALL_SECTIONS.filter(s => secRank(s) === r).length;
+    if (!cnt) return '';
+    const on = !!rankFilterOn[r];
+    const st = on ? (RANK_STYLE[r] || 'bg-slate-500 text-white') + ' ring-2 ring-indigo-400'
+      : 'bg-slate-100 dark:bg-slate-800 text-slate-500';
+    return `<button onclick="toggleRankFilter('${r}')" class="px-2.5 py-1 text-xs rounded-lg font-bold pressable ${st}">${r}<span class="opacity-70 ml-0.5">${cnt}</span></button>`;
+  }).join('');
+}
+function applyRange() {
+  const sel = [...document.querySelectorAll('.rangecb:checked')].map(cb => cb.value);
+  localStorage.setItem('rangeSel', JSON.stringify(sel.length === ALL_SECTIONS.length ? null : sel));
+  localStorage.removeItem('quizState');
+  showTab('quiz');
+  loadCards(true);
+}
+function savePreset() {
+  const name = prompt('プリセット名');
+  if (!name) return;
+  const sel = [...document.querySelectorAll('.rangecb:checked')].map(cb => cb.value);
+  const ps = JSON.parse(localStorage.getItem('presets') || '{}');
+  ps[name] = sel;
+  localStorage.setItem('presets', JSON.stringify(ps));
+  renderPresets();
+}
+function renderPresets() {
+  const ps = JSON.parse(localStorage.getItem('presets') || '{}');
+  $('presetList').innerHTML = Object.keys(ps).map(n =>
+    `<button onclick="loadPreset('${esc(n)}')" class="px-3 py-1.5 text-xs bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 rounded-lg pressable">${esc(n)}</button>`).join('');
+}
+function loadPreset(name) {
+  const sel = (JSON.parse(localStorage.getItem('presets') || '{}'))[name] || [];
+  document.querySelectorAll('.rangecb').forEach(cb => cb.checked = sel.includes(cb.value));
+}
+
+// 旧バージョンで端末内に溜めたフラグ(localStorage)をNotionへ移行（1回だけ）
+async function migrateLocalFlags() {
+  if (!cfg.token || !cfg.flagDb) return;
+  let old = [];
+  try { old = JSON.parse(localStorage.getItem('holeFlags') || '[]'); } catch (e) { return; }
+  if (!old.length) return;
+  let moved = 0;
+  for (const f of old) {
+    try {
+      await notion('/v1/pages', {
+        parent: { database_id: cfg.flagDb },
+        properties: {
+          '内容': { title: [{ text: { content: ((f.section || '') + ' ' + (f.heading || '')).slice(0, 200) } }] },
+          '題番号': { rich_text: [{ text: { content: f.section || '' } }] },
+          '大見出し': { rich_text: [{ text: { content: (f.heading || '').slice(0, 200) } }] },
+          'メモ': { rich_text: [{ text: { content: (f.note || '').slice(0, 1900) } }] },
+          '状態': { select: { name: '未対応' } },
+        },
+      });
+      moved++;
+    } catch (e) { /* 失敗分は残す */ }
+  }
+  if (moved >= old.length) localStorage.removeItem('holeFlags');
+  if (moved) toast(`🚩 旧フラグ${moved}件をNotionへ移行しました`, 'bg-emerald-600');
+}
+
+// ── 起動 ──
+showTab('quiz');
+if (cfg.token) { migrateLocalFlags().finally(() => loadCards(false)); }
+else {
+  $('loadingMsg').textContent = '⚙設定タブでNotionトークンを入力してください';
+  $('loadBtn').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
