@@ -354,6 +354,7 @@ const SECTION_HEADINGS = {
 const SECTION_SUB = {};
 const HEAD_LINKS = {};
 
+const $ = id => document.getElementById(id);
 function daysToExam() { return Math.max(0, Math.ceil((EXAM_DATE - new Date()) / 86400000)); }
 $('daysLeft').textContent = daysToExam();
 $('appVer').textContent = APP_VER;
