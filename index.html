@@ -339,7 +339,7 @@
 
 <script>
 'use strict';
-const APP_VER = 'v56';  // 更新のたびに上げる（キャッシュ確認用）
+const APP_VER = 'v57';  // 更新のたびに上げる（キャッシュ確認用）
 const EXAM_DATE = new Date('2027-08-03T00:00:00');
 // 各題の大見出し〔n〕の構成（穴の有無に関わらず存在する見出し番号）
 const SECTION_STRUCT = {'1-1':['1','2','3'],'1-2':['1'],'1-3':['1'],'1-4':['1']};
@@ -361,7 +361,7 @@ const appStorage = {
   setItem: (key, value) => window.localStorage.setItem('shohizei:' + key, value),
   removeItem: key => window.localStorage.removeItem('shohizei:' + key),
 };
-const DEFAULTS = { proxy: 'https://notion-proxy.djsa9pro.workers.dev', db: '3b9fa2ca-2310-812f-a6a1-d74fde611068', flagDb: '', token: '', retry: true, dark: false, orderMode: 'fewest' };
+const DEFAULTS = { proxy: 'https://notion-proxy.djsa9pro.workers.dev', db: '3b9fa2ca-2310-8171-a10b-e1d5f451f68a', flagDb: '', token: '', retry: true, dark: false, orderMode: 'fewest' };
 let cfg = Object.assign({}, DEFAULTS, JSON.parse(appStorage.getItem('cfg') || '{}'));
 function applyDark() { document.documentElement.classList.toggle('dark', cfg.dark); }
 function saveSettings() { cfg.token=$('setToken').value.trim(); cfg.proxy=$('setProxy').value.trim().replace(/\/$/,''); cfg.db=$('setDb').value.trim(); cfg.retry=$('setRetry').checked; cfg.orderMode=$('setOrder').value; cfg.dark=$('setDark').checked; appStorage.setItem('cfg',JSON.stringify(cfg)); applyDark(); }
