@@ -21,7 +21,9 @@
   .mask-wrong { color: #ef4444; font-weight: 700; padding: 0 2px; }
   .clause { background: rgba(250,204,21,.22); border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
   .dark .clause { background: rgba(250,204,21,.16); }
-  /* 消費税法の見出し階層: （１）→①→イ→（イ）→㋑ */
+  /* 消費税法の見出し階層: １．→（１）→①→イ→（イ）→㋑ */
+  .tax-head-0 { color: #312e81; font-weight: 800; }
+  .dark .tax-head-0 { color: #c7d2fe; }
   .tax-head-1 { color: #4f46e5; font-weight: 800; }
   .dark .tax-head-1 { color: #a5b4fc; }
   .tax-head-2 { color: #0891b2; font-weight: 700; }
@@ -138,12 +140,12 @@
     <div id="pillarStart" class="flex-1 flex flex-col items-center justify-center gap-4 text-center min-h-[55vh]">
       <div class="text-5xl">🏛️</div>
       <div class="text-lg font-bold">柱（構成）想起モード</div>
-      <div class="text-sm text-slate-500 max-w-[300px]">題名を見て、<b>大見出し１．２．…</b>と本文の<b>（１）→①→イ→（イ）→㋑</b>を順番に言えるか練習します。</div>
+      <div class="text-sm text-slate-500 max-w-[300px]">題名を見て、<b>１．→（１）→①→イ→（イ）→㋑</b>を順番に言えるか練習します。</div>
       <div class="w-full max-w-[300px]">
         <div class="text-xs text-slate-400 mb-1">深さ</div>
         <div class="grid grid-cols-2 gap-2">
-          <button id="lvl1" onclick="setPillarLevel(1)" class="py-2.5 rounded-xl font-bold text-sm pressable">（１）見出しのみ</button>
-          <button id="lvl2" onclick="setPillarLevel(2)" class="py-2.5 rounded-xl font-bold text-xs pressable">下位見出しまで</button>
+          <button id="lvl1" onclick="setPillarLevel(1)" class="py-2.5 rounded-xl font-bold text-sm pressable">１．見出しのみ</button>
+          <button id="lvl2" onclick="setPillarLevel(2)" class="py-2.5 rounded-xl font-bold text-xs pressable">（１）以下も含める</button>
         </div>
       </div>
       <div id="pillarDueInfo" class="text-xs text-slate-400"></div>
@@ -346,9 +348,9 @@
 
 <script>
 'use strict';
-const APP_VER = 'v59';  // 更新のたびに上げる（キャッシュ確認用）
+const APP_VER = 'v60';  // 更新のたびに上げる（キャッシュ確認用）
 const EXAM_DATE = new Date('2027-08-03T00:00:00');
-// 消費税法は本文を（１）→①→イ→（イ）→㋑で構成する。
+// 消費税法は１．→（１）→①→イ→（イ）→㋑で構成する。
 // 旧・所得税法の〔1〕→⑴の前提を使わない（穴がない見出しの固定検査も行わない）。
 const SECTION_STRUCT = {};
 const TAX_KANA = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
@@ -360,6 +362,14 @@ function topHeadingNumber(h) {
   return m ? +(toHalfwidthDigits(m[1])) : 999;
 }
 function formatTopHead(n) { return toFullwidthDigits(n) + '．'; }
+function taxTopHeading(h) {
+  const raw = String(h || '').trim();
+  const m = raw.match(/^([0-9０-９]+)\s*[．.]\s*(.*)$/);
+  if (!m) return { mark: '', text: raw, name: raw };
+  const mark = formatTopHead(m[1]);
+  const name = m[2].trim();
+  return { mark, text: name ? mark + name : mark, name };
+}
 
 // 行頭だけを見出しとして扱う。本文中の「イ」などを誤検出しないよう、単独カナの後ろには空白等を要求する。
 function taxHeadingLine(line) {
@@ -397,12 +407,14 @@ function taxHeadingTrail(question, outerHeading) {
     levels[info.level] = { mark: info.mark, text: taxHeadingText(line, info) };
     levels.length = info.level + 1;
   }
-  const path = levels.slice(1).filter(Boolean);
-  const outer = String(outerHeading || '').trim() || '本文';
+  const innerPath = levels.slice(1).filter(Boolean);
+  const top = taxTopHeading(outerHeading);
+  const outer = top.text || '本文';
+  const path = top.mark ? [{ mark: top.mark, text: outer }, ...innerPath] : innerPath;
   return {
-    key: [outer, ...path.map(x => x.mark)].join(' › '),
-    label: [outer, ...path.map(x => x.text)].join(' › '),
-    short: path.length ? path[path.length - 1].text : outer,
+    key: [outer, ...innerPath.map(x => x.mark)].join(' › '),
+    label: [outer, ...innerPath.map(x => x.text)].join(' › '),
+    short: innerPath.length ? innerPath[innerPath.length - 1].text : outer,
     path,
   };
 }
@@ -423,13 +435,19 @@ function knownHeadingsForSection(sec) {
   }
   return [...seen].map(([key, label]) => ({ key, label }));
 }
-function decorateTaxHeadingLines(raw) {
-  return String(raw || '').split(/\r?\n/).map(line => {
+function decorateTaxHeadingLines(raw, outerHeading) {
+  const source = String(raw || '');
+  const top = taxTopHeading(outerHeading);
+  const body = source.split(/\r?\n/).map(line => {
     const info = taxHeadingLine(line);
     if (!info) return line;
     const shown = info.indent + info.mark + line.slice(info.prefix.length);
     return `‹‹TH${info.level}››${shown}‹‹/TH${info.level}››`;
   }).join('\n');
+  // Notionの「大見出し」も本文の最上位（１．）としてカード内に表示する。
+  const firstLine = source.split(/\r?\n/).find(line => line.trim()) || '';
+  const alreadyInBody = top.mark && taxTopHeading(firstLine).mark === top.mark;
+  return top.text && !alreadyInBody ? `‹‹TH0››${top.text}‹‹/TH0››\n\n${body}` : body;
 }
 
 // 各題の外側の大見出し。柱想起モードの未読時フォールバックとして使用する。
@@ -947,9 +965,9 @@ function renderCard() {
 
   // 見出し単位の本文をそのまま表示（題全体の連結はしない＝文章が崩れない）
   let raw = c.question;
-  // 消費税法の階層を行単位で強調する: （１）→①→イ→（イ）→㋑。
+  // 消費税法の階層を行単位で強調する: １．→（１）→①→イ→（イ）→㋑。
   // 表記揺れの半角括弧・半角数字は、画面上では全角の（１）に統一する。
-  raw = decorateTaxHeadingLines(raw);
+  raw = decorateTaxHeadingLines(raw, c.heading);
   // 出題穴の直前の読点（、。改行）から穴までを文脈ハイライト（文脈理解のため）
   const hi = raw.indexOf('〔_〕');
   if (hi >= 0) {
@@ -963,8 +981,8 @@ function renderCard() {
   // 出題穴と伏せ字を同じ3文字幅に統一（問題が進んでも本文がズレない）
   const curCls = wrongMap[c.id] ? 'hole-wrong' : 'hole';
   $('qText').innerHTML = esc(raw)
-    .replace(/‹‹TH([1-5])››/g, (m, level) => `<span class="tax-head-${level}">`)
-    .replace(/‹‹\/TH[1-5]››/g, '</span>')
+    .replace(/‹‹TH([0-5])››/g, (m, level) => `<span class="tax-head-${level}">`)
+    .replace(/‹‹\/TH[0-5]››/g, '</span>')
     .split('‹‹CL››').join('<span class="clause">').split('‹‹/CL››').join('</span>')
     .replace(/〔_〕/g, `<span class="${curCls} blink">〔？〕</span>`)
     .replace(/〔●(\d+)〕/g, (m, n) => {
@@ -2072,7 +2090,7 @@ let pillarQueue = [];
 let pillarIdx = 0;
 let pillarSession = { ok: 0, ng: 0 };
 let pillarStep = 0;        // 何項目まで表示したか
-let pillarLevel = +(appStorage.getItem('pillarLevel') || 1); // 1=（１）見出し 2=下位見出しまで
+let pillarLevel = +(appStorage.getItem('pillarLevel') || 1); // 1=１．見出し 2=（１）以下も含める
 let pillarCurItems = [];   // 現在の題の表示項目（見出し階層を平坦化）
 // 見出し1本ごとの成績（'題番号|項目キー' -> {c:正答数, t:出題数}）。穴埋めと同じ粒度で記録
 let pillarItemSRS = JSON.parse(appStorage.getItem('pillarItemSRS') || '{}');
@@ -2135,8 +2153,18 @@ function dynamicPillarItemsFor(sec) {
   const sourceCards = pillarDataLoaded ? pillarCards : baseCards;
   const source = orderSectionCards(sourceCards.filter(c => c.section === sec));
   if (!source.length) return [];
-  const seenTemplates = new Set(), seenItems = new Set(), items = [];
+  const seenTemplates = new Set(), seenItems = new Set(), seenTop = new Set(), items = [];
   for (const card of source) {
+    const top = taxTopHeading(card.heading);
+    const topKey = String(card.heading || '').trim() || top.text || '本文';
+    if (!seenTop.has(topKey)) {
+      seenTop.add(topKey);
+      items.push({
+        type: 'h', key: 'tax|' + topKey + '|top', n: card.heading || '', mark: top.mark,
+        depth: 1, star: '', name: top.name || top.text || '本文',
+      });
+    }
+    if (pillarLevel === 1) continue;
     const template = String(card.heading || '') + '\u0000' + String(card.question || '').replace(/〔_〕|〔●\d+〕/g, '〔●〕');
     if (seenTemplates.has(template)) continue;
     seenTemplates.add(template);
@@ -2146,14 +2174,13 @@ function dynamicPillarItemsFor(sec) {
       if (!info) continue;
       levels[info.level] = info.mark;
       levels.length = info.level + 1;
-      if (pillarLevel === 1 && info.level !== 1) continue;
       const path = levels.slice(1).filter(Boolean).join('›');
       const key = 'tax|' + String(card.heading || '') + '|' + path;
       if (seenItems.has(key)) continue;
       seenItems.add(key);
       items.push({
-        type: info.level === 1 ? 'h' : 's', key, n: card.heading || '', outer: String(card.heading || '').trim(), mark: info.mark,
-        depth: info.level, star: (String(line).match(/[☆★]+/) || [''])[0],
+        type: 's', key, n: card.heading || '', mark: info.mark,
+        depth: info.level + 1, star: (String(line).match(/[☆★]+/) || [''])[0],
         name: taxHeadingItemName(line, info),
       });
     }
@@ -2202,7 +2229,7 @@ function renderPillarStart() {
     if (!pillarDataLoading && !pillarDataError) ensurePillarData();
     info.innerHTML = pillarDataError
       ? `⚠ 本文見出しの取得に失敗しました。開始ボタンで再試行できます。<br><span class="opacity-70">${esc(pillarDataError)}</span>`
-      : '本文見出し（（１）→①→イ→（イ）→㋑）を読み込み中…';
+      : '本文見出し（１．→（１）→①→イ→（イ）→㋑）を読み込み中…';
     return;
   }
   const scope = pillarScope(), due = pillarDueList();
@@ -2278,13 +2305,10 @@ function pillarAppendItem(it, idx) {
   li.id = 'pitem' + idx;
   li.className = 'pop leading-relaxed ' + (isSub ? 'text-[14px] pl-5' : 'text-[15px] font-bold');
   if (depth > 2) li.style.paddingLeft = (depth * 10) + 'px';
-  const mark = it.mark || (isSub ? subMarkChar(it.m) : formatTopHead(it.n));
+  const mark = it.mark || (isSub ? subMarkChar(it.m) : (taxTopHeading(it.n).mark || formatTopHead(it.n)));
   const rate = pItemRate(sec, it.key);
   const rcls = rate == null ? '' : rate >= 90 ? 'text-emerald-500' : rate >= 70 ? 'text-amber-500' : 'text-rose-500';
-  const prev = pillarCurItems[idx - 1];
-  const showOuter = !!it.outer && (!prev || prev.outer !== it.outer);
   li.innerHTML =
-    (showOuter ? `<div class="text-[11px] text-indigo-500 dark:text-indigo-300 font-bold mt-2 mb-0.5">${esc(it.outer)}</div>` : '') +
     `<div class="flex gap-2 items-start">` +
       `<span class="${isSub ? 'text-slate-400' : 'text-indigo-600 dark:text-indigo-400'} shrink-0">${mark}</span>` +
       `<span class="flex-1">${esc(it.name)}${it.star ? `<span class="text-amber-500 ml-1 text-[12px]">${it.star}</span>` : ''}</span>` +
