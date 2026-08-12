@@ -358,9 +358,9 @@
 
 <script>
 'use strict';
-const APP_VER = 'v61';  // 更新のたびに上げる（キャッシュ確認用）
+const APP_VER = 'v62';  // 更新のたびに上げる（キャッシュ確認用）
 const SUBJECT = 'shohizei';
-const CACHE_SCHEMA = 61;
+const CACHE_SCHEMA = 62;
 // 消費税法のNotion接続先。設定画面からの変更や、他科目の保存設定による上書きは許可しない。
 const HOLE_DB_ID = '3b9fa2ca-2310-8171-a10b-e1d5f451f68a';
 const FLAG_DB_ID = '3b9fa2ca-2310-8124-8ea7-fc9cd8d97680'; // 消費税法専用の修正フラグDB
@@ -373,6 +373,17 @@ const TAX_KANA = 'アイウエオカキクケコサシスセソタチツテト�
 const FULLWIDTH_DIGITS = '０１２３４５６７８９';
 function toFullwidthDigits(v) { return String(v == null ? '' : v).replace(/[0-9]/g, d => FULLWIDTH_DIGITS[+d]); }
 function toHalfwidthDigits(v) { return String(v == null ? '' : v).replace(/[０-９]/g, d => String(FULLWIDTH_DIGITS.indexOf(d))); }
+// Studying本文では各行の間に空行が入ることがある。見出し・段落の改行は残し、空行だけを除く。
+// 読込・編集・穴追加の全経路で使い、今後追加する題も同じ表示密度にそろえる。
+function normalizeQuestionLineBreaks(value) {
+  return String(value == null ? '' : value)
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map(line => line.replace(/[\t 　]+$/g, ''))
+    .filter(line => line.trim() !== '')
+    .join('\n')
+    .trim();
+}
 function topHeadingNumber(h) {
   const m = String(h || '').match(/^\s*([0-9０-９]+)\s*[．.]/);
   return m ? +(toHalfwidthDigits(m[1])) : 999;
@@ -691,7 +702,7 @@ async function showRelated(sec, n, key) {
       let tmpl = '';
       for (const r of hs) {
         const num = prop(r.properties, '穴番号', 'number');
-        const t = (prop(r.properties, '問題文', 'rich_text') || '').replace('〔_〕', `〔●${num}〕`);
+        const t = normalizeQuestionLineBreaks(prop(r.properties, '問題文', 'rich_text')).replace('〔_〕', `〔●${num}〕`);
         if (t.length > tmpl.length) tmpl = t;
       }
       _relCache[ck] = { tmpl, ans };
@@ -757,7 +768,7 @@ function mapHoleCard(r) {
     section: prop(r.properties, '題番号', 'rich_text'),
     title: prop(r.properties, '題名', 'rich_text'),
     heading: prop(r.properties, '大見出し', 'rich_text'),
-    question: prop(r.properties, '問題文', 'rich_text'),
+    question: normalizeQuestionLineBreaks(prop(r.properties, '問題文', 'rich_text')),
     answer: prop(r.properties, '正解', 'rich_text'),
     holeNum: prop(r.properties, '穴番号', 'number'),
     rank: prop(r.properties, '重要度', 'select'),
@@ -1604,7 +1615,7 @@ async function aggregateAllFromNotion() {
       const total = prop(p.properties, '出題回数', 'number');
       const heading = prop(p.properties, '大見出し', 'rich_text');
       const title = prop(p.properties, '題名', 'rich_text');
-      const question = prop(p.properties, '問題文', 'rich_text');
+      const question = normalizeQuestionLineBreaks(prop(p.properties, '問題文', 'rich_text'));
       const hi = taxHeadingTrail(question, heading);
       const n = hi.key;
       const o = secs[s] = secs[s] || { ok: 0, ng: 0, title, heads: {} };
@@ -1850,7 +1861,7 @@ async function saveEdit() {
   const c = cards[queueIdx];
   if (!c) return;
   if (!guardHoleCard(c, '穴の編集')) return;
-  const q = $('editQ').value, a = $('editA').value.trim();
+  const q = normalizeQuestionLineBreaks($('editQ').value), a = $('editA').value.trim();
   $('editSaveBtn').disabled = true;
   $('editMsg').textContent = '保存中...';
   try {
@@ -2005,7 +2016,7 @@ async function applyHoleSelection() {
 
   $('holeSelBtn').disabled = true;
   $('holeSelMsg').textContent = '作成中...';
-  const qNew = T.replace(`〔●${newNum}〕`, '〔_〕');
+  const qNew = normalizeQuestionLineBreaks(T.replace(`〔●${newNum}〕`, '〔_〕'));
   const id = `${sec}_a${Date.now().toString().slice(-6)}`;
   try {
     // 新しい穴を作成（pageIdが必要なのでここだけ待つ）
@@ -2079,7 +2090,7 @@ async function saveAdd() {
   const sec = openAdd._sec;
   if (!ALL_SECTIONS.includes(sec)) { $('addMsg').textContent = '⚠ 消費税法の題を選択してください'; return; }
   const heading = $('addHeading').value.trim();
-  const q = $('addQ').value.trim();
+  const q = normalizeQuestionLineBreaks($('addQ').value);
   const a = $('addA').value.trim();
   if (!q || !a) { $('addMsg').textContent = '⚠ 問題文と正解は必須です'; return; }
   if (!q.includes('〔_〕')) { $('addMsg').textContent = '⚠ 問題文に答える箇所〔_〕を入れてください'; return; }
@@ -2365,7 +2376,7 @@ async function ensurePillarData() {
     pillarCards = res.map(r => ({
       section: prop(r.properties, '題番号', 'rich_text'),
       heading: prop(r.properties, '大見出し', 'rich_text'),
-      question: prop(r.properties, '問題文', 'rich_text'),
+      question: normalizeQuestionLineBreaks(prop(r.properties, '問題文', 'rich_text')),
       holeNum: prop(r.properties, '穴番号', 'number'),
     })).filter(c => ALL_SECTIONS.includes(c.section) && c.question);
     pillarDataLoaded = true;
