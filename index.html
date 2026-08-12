@@ -358,9 +358,9 @@
 
 <script>
 'use strict';
-const APP_VER = 'v62';  // 更新のたびに上げる（キャッシュ確認用）
+const APP_VER = 'v63';  // 更新のたびに上げる（キャッシュ確認用）
 const SUBJECT = 'shohizei';
-const CACHE_SCHEMA = 62;
+const CACHE_SCHEMA = 63;
 // 消費税法のNotion接続先。設定画面からの変更や、他科目の保存設定による上書きは許可しない。
 const HOLE_DB_ID = '3b9fa2ca-2310-8171-a10b-e1d5f451f68a';
 const FLAG_DB_ID = '3b9fa2ca-2310-8124-8ea7-fc9cd8d97680'; // 消費税法専用の修正フラグDB
@@ -892,6 +892,7 @@ async function loadWeakness(rate = WEAK_RATE) {
       msg.textContent = `弱点を分析中... ${res.length}件`;
     } while (cursor && ++page < 120);
     let all = res.map(mapHoleCard).filter(c => ALL_SECTIONS.includes(c.section));
+    normalizeHeadingMarkerIds(all);
     const sel = selectedSections();
     if (sel) all = all.filter(c => sel.includes(c.section));
     // 見出し単位で正答率を集計
@@ -1069,6 +1070,7 @@ async function loadCards(force) {
     const orFilter = { or: targetSections.map(s => ({ property: '題番号', rich_text: { equals: s } })) };
     const results = await queryAll(orFilter, '題の全穴を取得中...');
     let all = results.map(mapHoleCard).filter(c => targetSections.includes(c.section));
+    normalizeHeadingMarkerIds(all);
 
     const bySec = {};
     for (const c of all) (bySec[c.section] = bySec[c.section] || []).push(c);
@@ -1121,6 +1123,29 @@ function holePos(card) {
 function orderHeadingCards(hcards) {
   if (hcards.length <= 1) return hcards.slice();
   return hcards.slice().sort((a, b) => holePos(a) - holePos(b));
+}
+// 元データの〔●n〕は見出しごとの連番だが、穴番号は題全体の連番である。
+// 数字ではなく本文中の位置で実カードと対応付け、途中に追加穴があっても番号がずれないようにする。
+function normalizeHeadingMarkerIds(allCards) {
+  const groups = new Map();
+  for (const card of allCards || []) {
+    const key = `${card.section}\u0000${card.heading}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(card);
+  }
+  for (const group of groups.values()) {
+    const holeAtPosition = new Map();
+    for (const card of group) holeAtPosition.set(holePos(card), card.holeNum);
+    for (const card of group) {
+      const source = String(card.question || '');
+      card.question = source.replace(/〔●(\d+)〕/g, (marker, raw, offset) => {
+        const position = source.slice(0, offset).replace(/〔_〕|〔●\d+〕/g, '\x01').length;
+        const actualHoleNum = holeAtPosition.get(position);
+        return actualHoleNum == null ? marker : `〔●${actualHoleNum}〕`;
+      });
+    }
+  }
+  return allCards;
 }
 function orderSectionCards(scards) {
   const byHead = {};
@@ -1416,7 +1441,22 @@ function undo() {
   toast('↩ 1問戻しました', 'bg-teal-600');
 }
 
-function judge(ok) {
+async function judge(ok) {
+  // 穴追加直後は、同じ見出しのNotion同期を完了してから次のカードへ進む。
+  // ページ移動で背景処理が途中終了し、一部カードだけ古い本文になるのを防ぐ。
+  if (_bgPending > 0) {
+    if (judge._waiting) return;
+    judge._waiting = true;
+    document.querySelectorAll('#judgeBtns button').forEach(button => { button.disabled = true; });
+    toast('🔄 追加した穴を全問題へ反映中…', 'bg-amber-500');
+    try { await _bgSync; } catch (e) { /* queueBgSync側で通知する */ }
+    document.querySelectorAll('#judgeBtns button').forEach(button => { button.disabled = false; });
+    judge._waiting = false;
+    if (_bgError) {
+      toast('⚠ 穴の反映が未完了です。次へ進まず、もう一度追加操作を確認してください', 'bg-rose-500');
+      return;
+    }
+  }
   const c = cards[queueIdx];
   if (!c) return;
   undoStack.push({
@@ -1918,11 +1958,40 @@ function closeAdd() { $('addModal').classList.add('hidden'); }
 // 背景同期を直列化（連続追加でも後の更新が最後に確定する）
 let _bgSync = Promise.resolve();
 let _bgPending = 0;
+let _bgError = null;
 function queueBgSync(fn) {
+  _bgError = null;
   _bgPending++;
   _bgSync = _bgSync.then(fn).then(() => {
     if (--_bgPending === 0) toast('✓ 同期完了', 'bg-emerald-600');
-  }).catch(e => { _bgPending = Math.max(0, _bgPending - 1); toast('⚠ 同期エラー: ' + e.message, 'bg-rose-500'); });
+  }).catch(e => {
+    _bgPending = Math.max(0, _bgPending - 1);
+    _bgError = e;
+    toast('⚠ 同期エラー: ' + e.message, 'bg-rose-500');
+  });
+}
+
+// 同じカードが baseCards / 現在の出題キュー / 復習キューで別オブジェクトになっていても、
+// 新しい穴テンプレートをすべてへ即時反映する。これにより「次の問題」も古い本文を表示しない。
+function applyHeadingTemplateLocally(sec, heading, template, removedPageIds = []) {
+  const removed = new Set(removedPageIds);
+  const pools = [baseCards, cards, wrongCards];
+  if (scopedSaved && Array.isArray(scopedSaved.cards)) pools.push(scopedSaved.cards);
+  const seen = new Set();
+  let updated = 0;
+  for (const pool of pools) {
+    for (const card of pool || []) {
+      if (!card || seen.has(card) || removed.has(card.pageId)) continue;
+      seen.add(card);
+      if (card.section !== sec || card.heading !== heading) continue;
+      const marker = `〔●${card.holeNum}〕`;
+      if (!template.includes(marker)) continue;
+      card.question = normalizeQuestionLineBreaks(template.replace(marker, '〔_〕'));
+      updated++;
+    }
+  }
+  clearSecTextCache();
+  return updated;
 }
 
 // ── 選択して穴を追加・統合 ──
@@ -2034,10 +2103,6 @@ async function applyHoleSelection() {
       },
     });
     // ローカルを即時更新してUIを反映（残り穴のNotion更新は背景で実行）
-    for (const h of keep) {
-      const lc = baseCards.find(x => x.pageId === h.pageId);
-      if (lc) lc.question = T.replace(`〔●${h.num}〕`, '〔_〕');
-    }
     for (const h of absorbed) {
       baseCards = baseCards.filter(x => x.pageId !== h.pageId);
       const ci = cards.findIndex(x => x.pageId === h.pageId); if (ci >= 0) cards.splice(ci, 1);
@@ -2050,6 +2115,7 @@ async function applyHoleSelection() {
       subject: SUBJECT, sourceDb: HOLE_DB_ID, sourceSchema: CACHE_SCHEMA,
     };
     baseCards.push(newCard);
+    applyHeadingTemplateLocally(sec, heading, T, absorbed.map(h => h.pageId));
     resortSection(sec);
     const curId = cards[queueIdx] ? cards[queueIdx].id : null;
     const idxs = cards.map((c, i) => c.section === sec ? i : -1).filter(i => i >= 0);
@@ -2073,7 +2139,7 @@ async function applyHoleSelection() {
     queueBgSync(async () => {
       for (const h of keep) {
         if (!h.pageId || !isCurrentHoleRef(h)) continue;
-        const q = T.replace(`〔●${h.num}〕`, '〔_〕');
+        const q = normalizeQuestionLineBreaks(T.replace(`〔●${h.num}〕`, '〔_〕'));
         await notion('/v1/pages/' + h.pageId, { properties: { '問題文': { rich_text: [{ text: { content: q.slice(0, 2000) } }] } } }, 'PATCH');
       }
       for (const h of absorbed) {
@@ -2379,6 +2445,7 @@ async function ensurePillarData() {
       question: normalizeQuestionLineBreaks(prop(r.properties, '問題文', 'rich_text')),
       holeNum: prop(r.properties, '穴番号', 'number'),
     })).filter(c => ALL_SECTIONS.includes(c.section) && c.question);
+    normalizeHeadingMarkerIds(pillarCards);
     pillarDataLoaded = true;
   } catch (e) {
     if (epoch === pillarDataEpoch) { pillarCards = []; pillarDataError = e.message || '取得に失敗しました'; }
