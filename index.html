@@ -235,6 +235,9 @@
       <label class="block">修正フラグDB（消費税法・固定）
         <input id="setFlagDb" type="text" readonly aria-readonly="true" class="mt-1 w-full p-2.5 rounded-xl border border-teal-200 dark:border-teal-900 bg-teal-50 dark:bg-teal-950/50 text-slate-500 dark:text-slate-400 select-all cursor-text">
       </label>
+      <label class="block">回答履歴DB（消費税法・固定）
+        <input id="setAnswerDb" type="text" readonly aria-readonly="true" class="mt-1 w-full p-2.5 rounded-xl border border-teal-200 dark:border-teal-900 bg-teal-50 dark:bg-teal-950/50 text-slate-500 dark:text-slate-400 select-all cursor-text">
+      </label>
       <label class="flex items-center justify-between">終了後に不正解を即時復習
         <input id="setRetry" type="checkbox" class="w-5 h-5 accent-teal-600" checked>
       </label>
@@ -358,7 +361,7 @@
 
 <script>
 'use strict';
-const APP_VER = 'v66';  // 画面・機能の更新ごとに上げる
+const APP_VER = 'v67';  // 画面・機能の更新ごとに上げる
 const SUBJECT = 'shohizei';
 // 学習データの互換性が壊れる場合だけ上げる。通常のAPP_VER更新では変更しない。
 // これにより、バージョンアップだけを理由に分析・履歴を消さない。
@@ -367,6 +370,7 @@ const CACHE_SCHEMA = 63;
 const HOLE_DB_ID = '3b9fa2ca-2310-8171-a10b-e1d5f451f68a';
 const FLAG_DB_ID = '3b9fa2ca-2310-8124-8ea7-fc9cd8d97680'; // 消費税法専用の修正フラグDB
 const MASTER_DB_ID = '3b9fa2ca-2310-81a8-9d70-dbcd922bdaae';
+const ANSWER_DB_ID = '3ddfa2ca-2310-8137-9902-c1384e390983'; // 消費税法専用の回答履歴DB
 const EXAM_DATE = new Date('2027-08-03T00:00:00');
 // 消費税法は１．→（１）→①→イ→（イ）→㋑で構成する。
 // 旧・所得税法の〔1〕→⑴の前提を使わない（穴がない見出しの固定検査も行わない）。
@@ -525,17 +529,19 @@ function storedJSON(key, fallback) {
     return value == null ? fallback : value;
   } catch (e) { return fallback; }
 }
-const STATE_META = Object.freeze({ subject: SUBJECT, db: HOLE_DB_ID, schema: CACHE_SCHEMA });
+const STATE_META = Object.freeze({ subject: SUBJECT, db: HOLE_DB_ID, answerDb: ANSWER_DB_ID, schema: CACHE_SCHEMA });
 const ANALYTICS_META = Object.freeze({ subject: SUBJECT, db: HOLE_DB_ID });
 const SUBJECT_CACHE_KEYS = [
   'quizState', 'fullStats', 'history', 'wrongMap', 'answerLog', 'weakMarks',
+  'answerCloud', 'pendingAnswers', 'answerCloudTs',
   'rangeSel', 'presets', 'pillarSRS', 'pillarItemSRS', 'pillarOv', 'pillarLevel', 'holeFlags',
 ];
 // v61より前の端末内フラグは、キャッシュ破棄の前に専用の一時キーへ退避する。
 // トークン未設定で更新しても、次回トークンを入力した際に専用フラグDBへ移行できる。
 const LEGACY_FLAG_MIGRATION_KEY = 'legacyHoleFlagsV61';
 function sameStateMeta(value) {
-  return !!value && value.subject === STATE_META.subject && value.db === STATE_META.db && value.schema === STATE_META.schema;
+  return !!value && value.subject === STATE_META.subject && value.db === STATE_META.db &&
+    value.answerDb === STATE_META.answerDb && value.schema === STATE_META.schema;
 }
 function sameDataSource(value) {
   return !!value && value.subject === ANALYTICS_META.subject && value.db === ANALYTICS_META.db;
@@ -561,7 +567,7 @@ resetIncompatibleSubjectCache();
 
 const DEFAULTS = {
   proxy: 'https://notion-proxy.djsa9pro.workers.dev', db: HOLE_DB_ID, flagDb: FLAG_DB_ID,
-  masterDb: MASTER_DB_ID, token: '', retry: true, dark: false, orderMode: 'fewest',
+  masterDb: MASTER_DB_ID, answerDb: ANSWER_DB_ID, token: '', retry: true, dark: false, orderMode: 'fewest',
 };
 const savedCfg = storedJSON('cfg', {});
 let cfg = Object.assign({}, DEFAULTS, {
@@ -575,6 +581,7 @@ function enforceSubjectDatabases() {
   cfg.db = HOLE_DB_ID;
   cfg.flagDb = FLAG_DB_ID;
   cfg.masterDb = MASTER_DB_ID;
+  cfg.answerDb = ANSWER_DB_ID;
 }
 function persistConfig() {
   enforceSubjectDatabases();
@@ -599,6 +606,7 @@ function saveSettings() {
   $('saveMsg').textContent = '✓ 保存しました（消費税法専用DBは固定です）';
   setTimeout(() => { if ($('saveMsg')) $('saveMsg').textContent = ''; }, 2200);
   if (cfg.token) {
+    syncPendingAnswers();
     ensureSectionRanks(true);
     // 初回v61で後からトークンを入力した場合も、退避済みの旧フラグをその場で移行する。
     migrateLocalFlags();
@@ -611,6 +619,7 @@ function fillSettings() {
   $('setDb').value = HOLE_DB_ID;
   $('setMasterDb').value = MASTER_DB_ID;
   $('setFlagDb').value = FLAG_DB_ID || '接続準備中';
+  $('setAnswerDb').value = ANSWER_DB_ID;
   $('setRetry').checked = cfg.retry;
   $('setOrder').value = cfg.orderMode;
   $('setDark').checked = cfg.dark;
@@ -619,7 +628,7 @@ function showTab(name) {
   for (const t of ['quiz','pillar','stats','range','settings']) $('view-'+t).classList.toggle('hidden', t !== name);
   document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('bg-white/25', b.dataset.tab === name));
   if (name === 'pillar') renderPillarStart();
-  if (name === 'stats') renderStats();
+  if (name === 'stats') { renderStats(); refreshAnalytics(); }
   if (name === 'range') { renderRange(); ensureSectionRanks(); }
   if (name === 'settings') { fillSettings(); refreshFlags().then(renderSettingsFlags); ensureSectionRanks(); }
 }
@@ -634,7 +643,7 @@ function assertNotionScope(path, payload, method = 'POST') {
   const requestPath = String(path || '');
   const query = requestPath.match(/^\/v1\/databases\/([^/]+)\/query$/);
   if (query) {
-    const allowed = new Set([HOLE_DB_ID, FLAG_DB_ID, MASTER_DB_ID]);
+    const allowed = new Set([HOLE_DB_ID, FLAG_DB_ID, MASTER_DB_ID, ANSWER_DB_ID]);
     if (!allowed.has(query[1])) throw new Error('安全保護: 消費税法以外のデータベースは参照できません');
     return;
   }
@@ -643,7 +652,7 @@ function assertNotionScope(path, payload, method = 'POST') {
   }
   if (String(method).toUpperCase() === 'POST' && requestPath === '/v1/pages') {
     const parentId = payload && payload.parent && payload.parent.database_id;
-    if (parentId !== HOLE_DB_ID && parentId !== FLAG_DB_ID) {
+    if (parentId !== HOLE_DB_ID && parentId !== FLAG_DB_ID && parentId !== ANSWER_DB_ID) {
       throw new Error('安全保護: 消費税法以外のデータベースには追加できません');
     }
   }
@@ -823,34 +832,141 @@ function guardHoleCard(card, action) {
 let queueIdx = 0;
 let sessionResults = {};
 let wrongCards = [];
-let wrongMap = JSON.parse(appStorage.getItem('wrongMap') || '{}');
-let history = JSON.parse(appStorage.getItem('history') || '{}'); // section -> {ok, ng, title, heads:{n:{ok,ng}}}
-// 日付つき回答ログ（本日/過去N日の正答率算出用。端末ローカル）
-let answerLog = JSON.parse(appStorage.getItem('answerLog') || '[]');
-let statPeriod = 'all'; // all=累計(Notion) / today / 7d
-function logAnswer(c, ok) {
-  answerLog.push({ d: todayStr(), s: c.section, h: headNum(c), l: headLabel(c), ok: ok ? 1 : 0 });
-  if (answerLog.length > 6000) answerLog = answerLog.slice(-5000);
-  appStorage.setItem('answerLog', JSON.stringify(answerLog));
+let wrongMap = storedJSON('wrongMap', {});
+let history = storedJSON('history', {}); // v66以前の端末内累計（移行用）
+let statPeriod = '30d';
+let answerLog = storedJSON('answerLog', []);
+let answerCloud = storedJSON('answerCloud', []);
+let pendingAnswers = storedJSON('pendingAnswers', []);
+let answerCloudTs = +(appStorage.getItem('answerCloudTs') || 0);
+let answerSyncRunning = false;
+let analyticsLoading = false;
+let deviceId = appStorage.getItem('deviceId');
+if (!deviceId) {
+  deviceId = (crypto.randomUUID ? crypto.randomUUID() : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  appStorage.setItem('deviceId', deviceId);
 }
-function unlogAnswer(c) {
-  for (let i = answerLog.length - 1; i >= 0; i--) { if (answerLog[i].s === c.section && answerLog[i].h === headNum(c)) { answerLog.splice(i, 1); break; } }
+function newEventId() {
+  return crypto.randomUUID ? crypto.randomUUID() : `ans-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+function localDay(value) {
+  const d = value ? new Date(value) : new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+// 旧ローカルログにも安定したIDを付け、回答履歴DBによる分析へ引き継ぐ。
+answerLog = answerLog.map((e, i) => ({
+  id: e.id || `legacy-${deviceId}-${e.d || 'unknown'}-${i}`,
+  ts: e.ts || `${e.d || todayStr()}T12:00:00+09:00`,
+  d: e.d || localDay(e.ts), s: e.s || '', h: String(e.h || '-'), l: e.l || e.heading || String(e.h || ''), ok: e.ok ? 1 : 0,
+  holeId: e.holeId || '', title: e.title || '', heading: e.heading || e.l || '', holeNum: e.holeNum || 0,
+  mode: e.mode || '通常', pageId: e.pageId || '', legacy: !e.id,
+}));
+appStorage.setItem('answerLog', JSON.stringify(answerLog));
+
+function persistAnswerData() {
   appStorage.setItem('answerLog', JSON.stringify(answerLog));
+  appStorage.setItem('answerCloud', JSON.stringify(answerCloud));
+  appStorage.setItem('pendingAnswers', JSON.stringify(pendingAnswers));
+}
+function analysisEvents() {
+  const map = new Map();
+  for (const e of answerCloud) if (e && e.id) map.set(e.id, e);
+  for (const e of answerLog) if (e && e.id) map.set(e.id, e);
+  return [...map.values()];
+}
+function logAnswer(c, ok) {
+  const event = {
+    id: newEventId(), ts: new Date().toISOString(), d: todayStr(),
+    s: c.section, h: headNum(c), l: headLabel(c), ok: ok ? 1 : 0,
+    holeId: c.id, title: c.title || '', heading: c.heading || '', holeNum: c.holeNum || 0,
+    mode: inWrongReview ? '復習' : '通常', pageId: '', retry: false,
+  };
+  answerLog.push(event);
+  pendingAnswers.push(Object.assign({}, event));
+  persistAnswerData();
+  if (!$('view-stats').classList.contains('hidden')) renderStats();
+  syncPendingAnswers();
+  return event;
+}
+function unlogAnswer(eventId) {
+  const event = answerLog.find(e => e.id === eventId) || answerCloud.find(e => e.id === eventId);
+  answerLog = answerLog.filter(e => e.id !== eventId);
+  answerCloud = answerCloud.filter(e => e.id !== eventId);
+  pendingAnswers = pendingAnswers.filter(e => e.id !== eventId);
+  persistAnswerData();
+  if (event && event.pageId) {
+    notion('/v1/pages/' + event.pageId, { archived: true }, 'PATCH')
+      .catch(() => toast('回答履歴の取消同期に失敗しました', 'bg-rose-500'));
+  }
+}
+function eventProperties(e) {
+  return {
+    '回答ID': { title: [{ text: { content: e.id } }] },
+    '科目': { select: { name: '消費税法' } },
+    '穴ID': { rich_text: [{ text: { content: (e.holeId || '').slice(0, 1900) } }] },
+    '題番号': { rich_text: [{ text: { content: (e.s || '').slice(0, 200) } }] },
+    '題名': { rich_text: [{ text: { content: (e.title || '').slice(0, 1900) } }] },
+    '大見出し番号': { rich_text: [{ text: { content: String(e.h || '-') } }] },
+    '大見出し': { rich_text: [{ text: { content: (e.heading || '').slice(0, 1900) } }] },
+    '穴番号': { number: +(e.holeNum || 0) },
+    '正誤': { select: { name: e.ok ? '正解' : '不正解' } },
+    '回答日時': { date: { start: e.ts } },
+    'モード': { select: { name: e.mode === '復習' ? '復習' : '通常' } },
+    '端末ID': { rich_text: [{ text: { content: deviceId } }] },
+  };
+}
+async function syncPendingAnswers() {
+  if (answerSyncRunning || !cfg.token || !cfg.answerDb || !pendingAnswers.length) return;
+  answerSyncRunning = true;
+  try {
+    while (pendingAnswers.length) {
+      const e = pendingAnswers[0];
+      try {
+        let page = null;
+        if (e.retry) {
+          const found = await notion(`/v1/databases/${cfg.answerDb}/query`, {
+            page_size: 1, filter: { property: '回答ID', title: { equals: e.id } },
+          });
+          page = found.results && found.results[0];
+        }
+        if (!page) page = await notion('/v1/pages', { parent: { database_id: cfg.answerDb }, properties: eventProperties(e) });
+        const local = answerLog.find(x => x.id === e.id);
+        if (local) local.pageId = page.id;
+        else await notion('/v1/pages/' + page.id, { archived: true }, 'PATCH');
+        const pendingIndex = pendingAnswers.findIndex(x => x.id === e.id);
+        if (pendingIndex >= 0) pendingAnswers.splice(pendingIndex, 1);
+        persistAnswerData();
+      } catch (err) {
+        e.retry = true;
+        persistAnswerData();
+        break;
+      }
+    }
+  } finally {
+    answerSyncRunning = false;
+    if (!$('view-stats').classList.contains('hidden')) renderStats();
+  }
 }
 function statsFromLog(days) {
   const secs = {};
   let cutoff = null;
   if (days) { const d = new Date(); d.setDate(d.getDate() - (days - 1)); cutoff = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-  for (const e of answerLog) {
+  for (const e of analysisEvents()) {
     if (!ALL_SECTIONS.includes(e.s)) continue;
-    if (cutoff && e.d < cutoff) continue;
-    const o = secs[e.s] = secs[e.s] || { ok: 0, ng: 0, title: (SECTION_TITLES[e.s] || ''), heads: {} };
+    if (cutoff && localDay(e.ts || e.d) < cutoff) continue;
+    const o = secs[e.s] = secs[e.s] || { ok: 0, ng: 0, title: e.title || (SECTION_TITLES[e.s] || ''), heads: {}, holes: {} };
     e.ok ? o.ok++ : o.ng++;
     // v58以前の「-」は所得税法式の見出し解析に失敗した記録。題合計だけ残し、見出し別には出さない。
     if (e.h && e.h !== '-') {
       const hh = o.heads[e.h] = o.heads[e.h] || { ok: 0, ng: 0, label: e.l || '' };
       if (!hh.label && e.l) hh.label = e.l;
       e.ok ? hh.ok++ : hh.ng++;
+    }
+    if (e.holeId) {
+      const hole = o.holes[e.holeId] = o.holes[e.holeId] || {
+        ok: 0, ng: 0, holeId: e.holeId, holeNum: e.holeNum, title: e.title, heading: e.heading, h: e.h,
+      };
+      e.ok ? hole.ok++ : hole.ng++;
     }
   }
   return secs;
@@ -873,7 +989,7 @@ function loadWeekWeak() {
   showTab('quiz');
   loadCards(true);
 }
-function setStatPeriod(p) { statPeriod = p; renderStats(); }
+function setStatPeriod(p) { statPeriod = p; renderStats(); refreshAnalytics(); }
 let statRangeOnly = false;
 function toggleStatRange() { statRangeOnly = !statRangeOnly; renderStats(); }
 
@@ -983,7 +1099,7 @@ function saveState() {
     // cards と baseCards の問題文を二重保存せず、出題キューはID列だけ保存する。
     // localStorage容量超過で追加前の古いキャッシュが残ることを防ぐ。
     appStorage.setItem('quizState', JSON.stringify({
-      subject: SUBJECT, db: HOLE_DB_ID, schema: CACHE_SCHEMA, stateMeta: STATE_META,
+      subject: SUBJECT, db: HOLE_DB_ID, answerDb: ANSWER_DB_ID, schema: CACHE_SCHEMA, stateMeta: STATE_META,
       date: todayStr(), range: appStorage.getItem('rangeSel') || 'null',
       cardIds: stateCards.map(c => c.id), queueIdx: main.queueIdx, baseCards: stateBaseCards, sessionResults,
       wrongIds: wrongCards.map(c => c.id), streak,
@@ -1493,9 +1609,9 @@ function undo() {
       const hn = headNum(c);
       if (h.heads && h.heads[hn]) { u.ok ? h.heads[hn].ok-- : h.heads[hn].ng--; }
       appStorage.setItem('history', JSON.stringify(history));
-      unlogAnswer(c);
     }
   }
+  if (u.eventId) unlogAnswer(u.eventId);
   if (u.wasWrong) wrongMap[c.id] = true; else delete wrongMap[c.id];
   appStorage.setItem('wrongMap', JSON.stringify(wrongMap));
   if (!u.ok) {
@@ -1546,11 +1662,13 @@ async function judge(ok) {
   }
   const c = cards[queueIdx];
   if (!c) return;
-  undoStack.push({
+  const undoItem = {
     idx: queueIdx, ok, inWrongReview,
     wasWrong: !!wrongMap[c.id], streak,
     prev: { correct: c.correct, total: c.total, interval: c.interval, ef: c.ef },
-  });
+    eventId: '',
+  };
+  undoStack.push(undoItem);
   if (undoStack.length > 20) undoStack.shift();
   updateUndoBtn();
   lastAnsweredSection = c.section;
@@ -1567,8 +1685,9 @@ async function judge(ok) {
     if (!hh.label) hh.label = headLabel(c);
     ok ? hh.ok++ : hh.ng++;
     appStorage.setItem('history', JSON.stringify(history));
-    logAnswer(c, ok);
   }
+  // 通常出題・復習を問わず、採点した瞬間に1回答1件として記録する。
+  undoItem.eventId = logAnswer(c, ok).id;
 
   if (ok) { delete wrongMap[c.id]; streak++; }
   else { wrongMap[c.id] = true; if (!scoped && !wrongCards.includes(c)) wrongCards.push(c); streak = 0; }
@@ -1865,6 +1984,52 @@ function renderSettingsFlags() {
         <button onclick="markFlagDone('${f.pageId}')" class="text-[11px] text-slate-400 px-2 py-1 pressable">✓済</button>
       </div>`).join('')}
   </div>`;
+}
+
+function parseAnswerPage(page) {
+  const p = page.properties || {};
+  const ts = p['回答日時'] && p['回答日時'].date ? p['回答日時'].date.start : '';
+  return {
+    id: prop(p, '回答ID', 'title'), pageId: page.id, ts, d: localDay(ts),
+    s: prop(p, '題番号', 'rich_text'), h: prop(p, '大見出し番号', 'rich_text') || '-',
+    l: prop(p, '大見出し', 'rich_text'), ok: prop(p, '正誤', 'select') === '正解' ? 1 : 0,
+    holeId: prop(p, '穴ID', 'rich_text'), holeNum: prop(p, '穴番号', 'number'),
+    title: prop(p, '題名', 'rich_text'), heading: prop(p, '大見出し', 'rich_text'),
+    mode: prop(p, 'モード', 'select') || '通常',
+  };
+}
+async function refreshAnswerHistory(force = false) {
+  if (!cfg.token || !cfg.answerDb || analyticsLoading) return;
+  if (!force && answerCloudTs && Date.now() - answerCloudTs < 60000) return;
+  analyticsLoading = true;
+  renderStats();
+  try {
+    let pages = [], cursor;
+    do {
+      const body = {
+        page_size: 100,
+        sorts: [{ property: '回答日時', direction: 'descending' }],
+        filter: { property: '科目', select: { equals: '消費税法' } },
+      };
+      if (cursor) body.start_cursor = cursor;
+      const response = await notion(`/v1/databases/${cfg.answerDb}/query`, body);
+      pages = pages.concat(response.results || []);
+      cursor = response.has_more ? response.next_cursor : undefined;
+    } while (cursor);
+    answerCloud = pages.map(parseAnswerPage).filter(e => e.id && e.s && ALL_SECTIONS.includes(e.s));
+    answerCloudTs = Date.now();
+    appStorage.setItem('answerCloudTs', String(answerCloudTs));
+    persistAnswerData();
+  } catch (e) {
+    toast('回答履歴の読込失敗（端末データで表示）', 'bg-rose-500');
+  } finally {
+    analyticsLoading = false;
+    renderStats();
+  }
+}
+async function refreshAnalytics(force = false) {
+  syncPendingAnswers();
+  await refreshAnswerHistory(force);
 }
 async function markFlagDone(pageId) {
   const flag = notionFlags.find(f => f.pageId === pageId);
@@ -2578,6 +2743,155 @@ function renderStats() {
     ${thin.length ? `<div class="mt-3 text-[11px] text-amber-600 dark:text-amber-400">⚠ 回答10回未満の薄い題: ${thin.join('、')}</div>` : ''}
   </div>`;
 }
+
+// v67分析: 回答履歴DBを正とし、採点直後のローカルイベントも同じ集計へ即時合流させる。
+function analyticsHeadCatalog(section) {
+  const heads = new Map();
+  for (const row of (SECTION_HEADINGS[section] || [])) {
+    const key = formatTopHead(row[0]) + row[1];
+    heads.set(key, row[1]);
+  }
+  for (const c of baseCards) {
+    if (c.section !== section) continue;
+    const key = headNum(c);
+    if (key && key !== '-') heads.set(key, taxTopHeading(c.heading).name || headLabel(c));
+  }
+  for (const e of analysisEvents()) {
+    if (e.s !== section || !e.h || e.h === '-') continue;
+    if (!heads.has(e.h)) heads.set(e.h, taxTopHeading(e.heading || e.l || e.h).name || e.h);
+  }
+  return [...heads.entries()].sort((a, b) => headingKeySort(a[0], b[0]));
+}
+renderStats = function renderStatsV67() {
+  const box = $('view-stats');
+  const periodDays = { today: 1, '7d': 7, '30d': 30, '90d': 90, all: null };
+  const days = Object.prototype.hasOwnProperty.call(periodDays, statPeriod) ? periodDays[statPeriod] : 30;
+  const STAT = statsFromLog(days);
+  const rangeSel = selectedSections();
+  let secs = ALL_SECTIONS.slice().sort(tidSort);
+  if (statRangeOnly && rangeSel) secs = secs.filter(s => rangeSel.includes(s));
+
+  let totalAns = 0, totalOk = 0;
+  for (const s of secs) {
+    const h = STAT[s] || { ok: 0, ng: 0 };
+    totalAns += h.ok + h.ng; totalOk += h.ok;
+  }
+
+  const holes = [];
+  for (const s of secs) {
+    const source = (STAT[s] && STAT[s].holes) || {};
+    for (const h of Object.values(source)) {
+      const t = h.ok + h.ng;
+      if (h.ng > 0 && (!t || h.ok / t < 0.8)) holes.push(Object.assign({ s, t, rate: t ? h.ok / t : 0 }, h));
+    }
+  }
+  holes.sort((a, b) => a.rate - b.rate || b.t - a.t);
+  const weak = holes.slice(0, 20);
+
+  const thinHeads = [];
+  for (const s of secs) {
+    for (const [n, name] of analyticsHeadCatalog(s)) {
+      const h = STAT[s] && STAT[s].heads && STAT[s].heads[n] || { ok: 0, ng: 0 };
+      const t = h.ok + h.ng;
+      if (t < 3) thinHeads.push({ s, n, name, t });
+    }
+  }
+  thinHeads.sort((a, b) => a.t - b.t || tidSort(a.s, b.s) || headingKeySort(a.n, b.n));
+
+  function windowCount(fromAge, toAge) {
+    let ok = 0, total = 0;
+    const now = Date.now();
+    for (const e of analysisEvents()) {
+      if (!secs.includes(e.s)) continue;
+      const stamp = new Date(e.ts || `${e.d}T12:00:00+09:00`).getTime();
+      if (!Number.isFinite(stamp)) continue;
+      const age = Math.floor((now - stamp) / 86400000);
+      if (age < fromAge || age > toAge) continue;
+      total++; ok += e.ok ? 1 : 0;
+    }
+    return { ok, total, rate: total ? Math.round(ok / total * 100) : null };
+  }
+  const recent30 = windowCount(0, 29), prior30 = windowCount(30, 59);
+  const trend = recent30.rate == null || prior30.rate == null ? null : recent30.rate - prior30.rate;
+  const periodBtns = [['today', '本日'], ['7d', '7日'], ['30d', '30日'], ['90d', '90日'], ['all', '全期間']]
+    .map(([p, lbl]) => `<button onclick="setStatPeriod('${p}')" class="px-3 py-1 text-xs rounded-lg pressable ${statPeriod === p ? 'bg-teal-700 text-white' : 'bg-slate-200 dark:bg-slate-700'}">${lbl}</button>`).join('');
+  const pLbl = { today: '本日', '7d': '7日', '30d': '30日', '90d': '90日', all: '全期間' }[statPeriod] || '30日';
+  const syncLabel = !cfg.token
+    ? '<span class="text-slate-500 font-bold">端末保存（トークン未設定）</span>'
+    : pendingAnswers.length
+      ? `<span class="text-amber-600 dark:text-amber-400 font-bold">送信待ち ${pendingAnswers.length}件</span>`
+      : analyticsLoading
+        ? '<span class="text-cyan-700 dark:text-cyan-300">Notion読込中…</span>'
+        : answerCloudTs
+          ? '<span class="text-emerald-600 dark:text-emerald-400 font-bold">Notion同期済</span>'
+          : '<span class="text-cyan-700 dark:text-cyan-300 font-bold">Notion接続待ち</span>';
+
+  box.innerHTML = `
+  <div class="rounded-2xl bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-900 px-3 py-2 text-[11px] flex items-center justify-between gap-2">
+    <span>採点と同時に反映・1回答ずつ消費税法専用DBへ保存</span>
+    <span class="shrink-0">${syncLabel}</span>
+  </div>
+
+  <div class="grid grid-cols-3 gap-2">
+    <div class="bg-gradient-to-br from-cyan-600 to-teal-700 text-white rounded-2xl p-3 text-center shadow">
+      <div class="text-2xl font-extrabold">${totalAns}</div><div class="text-[11px] opacity-90">${pLbl}の回答</div>
+    </div>
+    <div class="bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl p-3 text-center shadow">
+      <div class="text-2xl font-extrabold">${totalAns ? Math.round(totalOk / totalAns * 100) : 0}%</div><div class="text-[11px] opacity-90">${pLbl}の正答率</div>
+    </div>
+    <div class="bg-gradient-to-br from-rose-600 to-red-700 text-white rounded-2xl p-3 text-center shadow">
+      <div class="text-2xl font-extrabold">${holes.length}</div><div class="text-[11px] opacity-90">弱点の穴</div>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-4">
+    <div class="flex items-center justify-between gap-2 mb-2">
+      <h2 class="font-bold">📈 学習推移</h2>
+      <button onclick="refreshAnalytics(true)" class="px-3 py-1 text-xs rounded-lg bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 pressable">↻ 更新</button>
+    </div>
+    <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="rounded-xl bg-slate-50 dark:bg-slate-800 p-2"><div class="text-lg font-extrabold">${recent30.total}</div><div class="text-[10px] text-slate-400">直近30日 回答</div></div>
+      <div class="rounded-xl bg-slate-50 dark:bg-slate-800 p-2"><div class="text-lg font-extrabold">${recent30.rate == null ? '—' : recent30.rate + '%'}</div><div class="text-[10px] text-slate-400">直近30日 正答率</div></div>
+      <div class="rounded-xl ${trend == null ? 'bg-slate-50 dark:bg-slate-800' : trend >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-rose-50 dark:bg-rose-950/40'} p-2"><div class="text-lg font-extrabold ${trend == null ? '' : trend >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${trend == null ? '—' : (trend > 0 ? '+' : '') + trend + 'pt'}</div><div class="text-[10px] text-slate-400">前30日との差</div></div>
+    </div>
+    <div class="text-[10px] text-slate-400 mt-2">${answerCloudTs ? `最終取得 ${new Date(answerCloudTs).toLocaleString('ja-JP')}` : 'Notion履歴は初回読込中です'}${pendingAnswers.length ? `・通信復旧後に${pendingAnswers.length}件を自動送信` : ''}</div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-4">
+    <h2 class="font-bold mb-1">🎯 弱点（不正解が蓄積している穴）</h2>
+    <div class="text-[11px] text-slate-400 mb-2">選択期間内に不正解があり、正答率80%未満の穴。回答のたび即時更新します。</div>
+    ${weak.length === 0 ? '<div class="text-sm text-slate-400">この期間の弱点はまだありません</div>' : weak.map(h => {
+      const name = taxTopHeading(h.heading || h.h).name || h.heading || h.h || '';
+      return `<button class="w-full text-left py-2 border-b border-slate-100 dark:border-slate-800 last:border-0" onclick="jumpTo('${esc(String(h.holeId || ''))}')">
+        <div class="flex justify-between gap-2 text-sm"><span class="font-bold text-slate-700 dark:text-slate-200">${h.s} #${h.holeNum || '?'}</span><span class="text-rose-600 font-extrabold">${Math.round(h.rate * 100)}% (${h.ok}/${h.t})</span></div>
+        <div class="text-[11px] text-slate-400 truncate">${esc(String(name))}</div>
+      </button>`;
+    }).join('')}
+  </div>
+
+  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-4">
+    <h2 class="font-bold mb-1">🫧 学習が薄い見出し</h2>
+    <div class="text-[11px] text-slate-400 mb-2">消費税法の全見出しを母集団にし、期間内3回答未満を少ない順に表示します。</div>
+    ${thinHeads.length === 0 ? '<div class="text-sm text-emerald-600">すべての見出しを3回以上学習しています</div>' : `<div class="space-y-1">${thinHeads.slice(0, 20).map(x => `<div class="flex items-center gap-2 text-xs"><span class="w-12 shrink-0 font-bold">${x.s}</span><span class="flex-1 truncate text-slate-500">${esc(String(x.n))} ${esc(String(x.name))}</span><span class="shrink-0 ${x.t === 0 ? 'text-rose-500 font-bold' : 'text-amber-600'}">${x.t === 0 ? '未回答' : x.t + '回'}</span></div>`).join('')}</div>`}
+    ${thinHeads.length > 20 ? `<div class="text-[10px] text-slate-400 mt-2">ほか ${thinHeads.length - 20} 見出し</div>` : ''}
+  </div>
+
+  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-4">
+    <h2 class="font-bold mb-2">📚 題・見出しごとの正答率</h2>
+    <div class="flex gap-1.5 mb-2 flex-wrap">${periodBtns}${rangeSel ? `<button onclick="toggleStatRange()" class="px-3 py-1 text-xs rounded-lg pressable ${statRangeOnly ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700'}">📑 範囲のみ</button>` : ''}</div>
+    ${secs.map(s => {
+      const h = STAT[s] || { ok: 0, ng: 0, heads: {} };
+      const t = h.ok + h.ng, rate = t ? Math.round(h.ok / t * 100) : 0;
+      const color = !t ? 'bg-slate-300 dark:bg-slate-700' : rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-rose-500';
+      const sub = analyticsHeadCatalog(s).map(([n, name]) => {
+        const hh = h.heads && h.heads[n] || { ok: 0, ng: 0 }, ht = hh.ok + hh.ng, hr = ht ? Math.round(hh.ok / ht * 100) : 0;
+        const hc = !ht ? 'bg-slate-300 dark:bg-slate-700' : hr >= 80 ? 'bg-emerald-400' : hr >= 50 ? 'bg-amber-400' : 'bg-rose-400';
+        return `<div class="flex items-center gap-2 py-1 pl-3"><span class="flex-1 text-[11px] truncate text-slate-500">${esc(String(n))} ${esc(String(name))}</span><div class="w-16 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"><div class="h-full ${hc}" style="width:${ht ? hr : 0}%"></div></div><span class="text-[11px] w-16 text-right ${ht && hr < 50 ? 'text-rose-500 font-bold' : 'text-slate-400'}">${ht ? `${hr}%(${ht})` : '未回答'}</span></div>`;
+      }).join('');
+      return `<details class="mb-2 group"><summary class="cursor-pointer list-none"><div class="flex justify-between gap-2 text-xs mb-1"><span class="font-medium truncate">▸ ${s}${rankBadge(s)} ${esc(String(SECTION_TITLES[s] || h.title || ''))}</span><span class="text-slate-400 shrink-0">${t ? `${t}回・${rate}%` : '未回答'}</span></div><div class="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"><div class="h-full ${color}" style="width:${t ? rate : 0}%"></div></div></summary><div class="mt-1">${sub || '<div class="text-[11px] text-slate-400 pl-3">見出しデータなし</div>'}</div></details>`;
+    }).join('')}
+  </div>`;
+};
 function jumpTo(id) {
   let i = cards.findIndex((c, idx) => idx >= queueIdx && c.id === id);
   if (i < 0) i = cards.findIndex(c => c.id === id); // 前方も探す
@@ -3075,7 +3389,10 @@ async function migrateLocalFlags() {
 
 // ── 起動 ──
 showTab('quiz');
-if (cfg.token) { migrateLocalFlags().finally(() => loadCards(false)); }
+if (cfg.token) {
+  syncPendingAnswers();
+  migrateLocalFlags().finally(() => loadCards(false));
+}
 else {
   $('loadingMsg').textContent = '⚙設定タブでNotionトークンを入力してください';
   $('loadBtn').classList.remove('hidden');
