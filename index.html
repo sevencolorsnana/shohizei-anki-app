@@ -95,7 +95,9 @@
           <button onclick="flagSpot()" class="text-[11px] px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 pressable">🚩</button>
           <button onclick="openEdit()" class="text-[11px] px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 pressable">✏️</button>
         </div>
-        <div class="flex items-center gap-2 mb-1.5">
+        <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+          <button onclick="skipQuestion()" class="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 pressable">⏩ この問題をスキップ</button>
+          <button onclick="skipItem()" title="現在の（１）内の残りを飛ばして（２）へ進みます" class="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 pressable">⏩ 次の項目へ</button>
           <button onclick="skipHeading()" class="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 pressable">⏩ 次の見出し（１．→２．）</button>
           <button onclick="skipSection()" class="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 pressable">⏭ 次の題</button>
         </div>
@@ -361,7 +363,7 @@
 
 <script>
 'use strict';
-const APP_VER = 'v67';  // 画面・機能の更新ごとに上げる
+const APP_VER = 'v68';  // 画面・機能の更新ごとに上げる
 const SUBJECT = 'shohizei';
 // 学習データの互換性が壊れる場合だけ上げる。通常のAPP_VER更新では変更しない。
 // これにより、バージョンアップだけを理由に分析・履歴を消さない。
@@ -2046,6 +2048,65 @@ async function markFlagDone(pageId) {
 }
 
 // ── スキップ ──
+const ITEM_MARKS = '⑴⑵⑶⑷⑸⑹⑺⑻⑼⑽⑾⑿⒀⒁⒂⒃⒄⒅⒆⒇';
+function questionItem(c) {
+  const source = String(c && c.question || '');
+  const holeAt = source.indexOf('〔_〕');
+  const beforeHole = holeAt < 0 ? source : source.slice(0, holeAt);
+  let current = { key: 'intro', label: '冒頭' };
+  for (const line of beforeHole.split(/\r?\n/)) {
+    let m = line.match(/^\s*([⑴⑵⑶⑷⑸⑹⑺⑻⑼⑽⑾⑿⒀⒁⒂⒃⒄⒅⒆⒇])/);
+    if (m) {
+      const n = ITEM_MARKS.indexOf(m[1]) + 1;
+      current = { key: 'item:' + n, label: m[1] };
+      continue;
+    }
+    m = line.match(/^\s*([（(]\s*([0-9０-９]+)\s*[）)])/);
+    if (m) {
+      const n = Number(m[2].normalize('NFKC'));
+      current = { key: 'item:' + n, label: '（' + toFullwidthDigits(n) + '）' };
+    }
+  }
+  return current;
+}
+function sameSkipHeading(a, b) {
+  return !!a && !!b && a.section === b.section && headNum(a) === headNum(b);
+}
+function finishSkip(c, showBoundaryPanel = true) {
+  saveState();
+  if (scoped && queueIdx >= cards.length) { endScoped(); return; }
+  if (showBoundaryPanel && showSecPanels &&
+      (queueIdx >= cards.length || cards[queueIdx].section !== c.section)) {
+    lastAnsweredSection = c.section;
+    showSectionDone(c.section);
+    return;
+  }
+  renderCard();
+}
+function skipQuestion() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  queueIdx++;
+  toast(`⏩ 問題${c.section} #穴${c.holeNum} をスキップ`, 'bg-slate-600');
+  finishSkip(c);
+}
+function skipItem() {
+  const c = cards[queueIdx];
+  if (!c) return;
+  const current = questionItem(c);
+  let next = queueIdx + 1;
+  while (next < cards.length && sameSkipHeading(cards[next], c) &&
+         questionItem(cards[next]).key === current.key) next++;
+  if (next >= cards.length || !sameSkipHeading(cards[next], c)) {
+    toast('この見出しに次の項目はありません', 'bg-slate-600');
+    return;
+  }
+  const target = questionItem(cards[next]);
+  const skipped = next - queueIdx;
+  queueIdx = next;
+  toast(`⏩ ${current.label} → ${target.label}（${skipped}問スキップ）`, 'bg-slate-600');
+  finishSkip(c, false);
+}
 function skipHeading() {
   const c = cards[queueIdx];
   if (!c) return;
@@ -2054,14 +2115,7 @@ function skipHeading() {
          cards[queueIdx].section === c.section &&
          headNum(cards[queueIdx]) === headNum(c)) { queueIdx++; n++; }
   toast(`⏩ ${headShort(c) || '見出し'} を${n}問スキップ`, 'bg-slate-600');
-  saveState();
-  // 次の見出しが別の題なら、一旦その題の完了画面を挟む
-  if (showSecPanels && (queueIdx >= cards.length || cards[queueIdx].section !== c.section)) {
-    lastAnsweredSection = c.section;
-    showSectionDone(c.section);
-    return;
-  }
-  renderCard();
+  finishSkip(c);
 }
 function skipSection() {
   const c = cards[queueIdx];
@@ -2069,8 +2123,7 @@ function skipSection() {
   let n = 0;
   while (queueIdx < cards.length && cards[queueIdx].section === c.section) { queueIdx++; n++; }
   toast(`⏭ 問題${c.section} を${n}問スキップ`, 'bg-slate-600');
-  saveState();
-  renderCard();
+  finishSkip(c, false);
 }
 
 function showDone() {
