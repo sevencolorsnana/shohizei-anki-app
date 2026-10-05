@@ -363,8 +363,9 @@
 
 <script>
 'use strict';
-const APP_VER = 'v70';  // 画面・機能の更新ごとに上げる
-const CONTENT_REVISION = '2026-10-05-theory-tools13';
+const APP_VER = 'v71';  // 画面・機能の更新ごとに上げる
+const CONTENT_REVISION = '2026-10-05-added-hole-marker-fix';
+const RANGE_CONTENT_REVISION = '2026-10-05-theory-tools13';
 const SUBJECT = 'shohizei';
 // 学習データの互換性が壊れる場合だけ上げる。通常のAPP_VER更新では変更しない。
 // これにより、バージョンアップだけを理由に分析・履歴を消さない。
@@ -1095,8 +1096,8 @@ function todayStr() {
 }
 function selectedSections() {
   const stored = storedJSON('rangeSel', null);
-  const firstContentLoad = appStorage.getItem('rangeContentRevision') !== CONTENT_REVISION;
-  if (firstContentLoad) appStorage.setItem('rangeContentRevision', CONTENT_REVISION);
+  const firstContentLoad = appStorage.getItem('rangeContentRevision') !== RANGE_CONTENT_REVISION;
+  if (firstContentLoad) appStorage.setItem('rangeContentRevision', RANGE_CONTENT_REVISION);
   if (!Array.isArray(stored)) return null;
   // 以前の全題選択には追加された題も含める。個別の選択は保持する。
   if (firstContentLoad && stored.length === 4 && ['1-1','1-2','1-3','1-4'].every(s => stored.includes(s))) {
@@ -1304,6 +1305,13 @@ function normalizeHeadingMarkerIds(allCards) {
     groups.get(key).push(card);
   }
   for (const group of groups.values()) {
+    // 追加済みの正規テンプレートは補正不要。圧縮座標は穴の追加で変わるため、
+    // 正しい番号へ再適用すると別の穴へ置換され、前の問題から追加穴が消えてしまう。
+    const model = headingModel(group);
+    if (model && model.ranges.length === group.length) continue;
+    const validNumbers = new Set(group.map(card => +card.holeNum));
+    const markers = group.flatMap(card => [...String(card.question || '').matchAll(/〔●(\d+)〕/g)].map(m => +m[1]));
+    if (markers.every(n => validNumbers.has(n))) continue;
     const holeAtPosition = new Map();
     for (const card of group) holeAtPosition.set(rawMarkerPos(card), card.holeNum);
     for (const card of group) {
