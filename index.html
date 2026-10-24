@@ -22,18 +22,21 @@
   .clause { background: rgba(250,204,21,.22); border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
   .dark .clause { background: rgba(250,204,21,.16); }
   /* 消費税法の見出し階層: １．→（１）→①→（イ）→イ→㋑ */
-  .tax-head-0 { color: #115e59; font-weight: 800; }
-  .dark .tax-head-0 { color: #99f6e4; }
-  .tax-head-1 { color: #0f766e; font-weight: 800; }
-  .dark .tax-head-1 { color: #5eead4; }
-  .tax-head-2 { color: #0891b2; font-weight: 700; }
-  .dark .tax-head-2 { color: #67e8f9; }
-  .tax-head-3 { color: #047857; font-weight: 700; }
-  .dark .tax-head-3 { color: #6ee7b7; }
-  .tax-head-4 { color: #0e7490; font-weight: 700; }
-  .dark .tax-head-4 { color: #67e8f9; }
-  .tax-head-5 { color: #059669; font-weight: 700; }
-  .dark .tax-head-5 { color: #6ee7b7; }
+  /* Resident-tax heading layout, with the consumption-tax teal palette. */
+  .tax-head-0 { display:inline-block;width:100%;margin:.2rem 0 .45rem;padding:.38rem .55rem;border-left:4px solid #0f766e;border-radius:.35rem;color:#115e59;background:rgba(204,251,241,.8);font-size:17px;line-height:1.55;font-weight:900;box-sizing:border-box }
+  .dark .tax-head-0 { color:#99f6e4;background:rgba(17,94,89,.28);border-color:#2dd4bf }
+  .tax-head-1 { display:inline-block;width:100%;margin:.75rem 0 .25rem;color:#0f766e;font-size:16px;line-height:1.6;font-weight:800 }
+  .dark .tax-head-1 { color:#5eead4 }
+  .tax-head-3,.tax-head-4 { display:inline-block;width:calc(100% - .35rem);margin:.65rem 0 .2rem .35rem;color:#0e7490;font-size:15px;line-height:1.6;font-weight:800 }
+  .dark .tax-head-3,.dark .tax-head-4 { color:#67e8f9 }
+  .tax-cite { display:inline-block;width:calc(100% - .55rem);margin:-.2rem 0 .35rem .55rem;color:#a8a29e;font-size:11px;line-height:1.45;font-weight:600 }
+  .tax-marker-1 { color:#0f766e;font-weight:900 }
+  .tax-marker-2 { color:#0891b2;font-weight:900 }
+  .tax-marker-3,.tax-marker-4,.tax-marker-5 { color:#047857;font-weight:900 }
+  .dark .tax-marker-1 { color:#5eead4 }
+  .dark .tax-marker-2 { color:#67e8f9 }
+  .dark .tax-marker-3,.dark .tax-marker-4,.dark .tax-marker-5 { color:#6ee7b7 }
+
   .answer-reveal { color: #059669; font-weight: 700; }
   .dark .answer-reveal { color: #34d399; }
   .confetti-piece { position: fixed; width: 9px; height: 14px; top: -20px; z-index: 90; pointer-events: none; animation: fall linear forwards; }
@@ -364,7 +367,7 @@
 
 <script>
 'use strict';
-const APP_VER = 'v74';  // 画面・機能の更新ごとに上げる
+const APP_VER = 'v75';  // 画面・機能の更新ごとに上げる
 const CONTENT_REVISION = '2026-10-24-ohara2026-redtext';
 const RANGE_CONTENT_REVISION = '2026-10-24-ohara2026-52';
 const SUBJECT = 'shohizei-ohara2026';
@@ -485,20 +488,44 @@ function knownHeadingsForSection(sec) {
   }
   return [...seen].map(([key, label]) => ({ key, label }));
 }
+// Presentation only: never use these labels as storage, ranking or analytics keys.
+function displayHeadingLabel(value) {
+  return String(value || '')
+    .replace(/(^| › )([０-９0-9]+)[．.]/g, (_, start, n) => start + '〔' + toHalfwidthDigits(n) + '〕')
+    .replace(/[（(]([０-９0-9]+)[）)]/g, (all, n) => {
+      const number = +toHalfwidthDigits(n);
+      return number >= 1 && number <= 20 ? String.fromCharCode(0x2474 + number - 1) : all;
+    });
+}
+function splitHeadingCitation(value) {
+  const m = String(value).match(/^(.*?)([（(][^（）()\n]*(?:法|令|通|規|則)[^（）()\n]*[）)][★☆]*)$/);
+  return m ? [m[1].trimEnd(), m[2]] : [String(value), ''];
+}
 function decorateTaxHeadingLines(raw, outerHeading) {
   const source = String(raw || '');
-  const top = taxTopHeading(outerHeading);
+  const block = (level, text) => {
+    const [label, citation] = splitHeadingCitation(text);
+    return `‹‹TH${level}››${displayHeadingLabel(label)}‹‹/TH${level}››` + (citation ? `\n‹‹TC››${citation}‹‹/TC››` : '');
+  };
   const body = source.split(/\r?\n/).map(line => {
+    if (taxTopHeading(line).mark) return block(0, line.trim());
+    if (/^\s*[（(][^）)\n]*(?:法|令|通|規|則)[^）)\n]*[）)][★☆]*\s*$/.test(line)) return `‹‹TC››${line.trim()}‹‹/TC››`;
     const info = taxHeadingLine(line);
     if (!info) return line;
-    const shown = info.indent + info.mark + line.slice(info.prefix.length);
-    return `‹‹TH${info.level}››${shown}‹‹/TH${info.level}››`;
+    const text = line.slice(info.prefix.length);
+    const shown = displayHeadingLabel(info.mark) + text;
+    // Like the resident-tax app, only short labels get a full heading style.
+    // Enumerated sentences retain normal body type and emphasize their marker only.
+    const label = splitHeadingCitation(shown)[0];
+    const short = !/[。！？]/.test(label) && label.replace(/〔(?:_|●\d+)〕/g, '●').length <= (info.level === 1 ? 34 : 30);
+    if (short && info.level !== 2 && info.level !== 5) return block(info.level, shown);
+    return info.indent + `‹‹TM${info.level}››${displayHeadingLabel(info.mark)}‹‹/TM${info.level}››` + text;
   }).join('\n');
-  // Notionの「大見出し」も本文の最上位（１．）としてカード内に表示する。
-  const firstLine = source.split(/\r?\n/).find(line => line.trim()) || '';
-  const alreadyInBody = top.mark && taxTopHeading(firstLine).mark === top.mark;
-  return top.text && !alreadyInBody ? `‹‹TH0››${top.text}‹‹/TH0››\n\n${body}` : body;
+  const top = taxTopHeading(outerHeading);
+  const first = source.split(/\r?\n/).find(line => line.trim()) || '';
+  return top.text && !(top.mark && taxTopHeading(first).mark === top.mark) ? block(0, top.text) + '\n' + body : body;
 }
+
 
 // 各題の外側の大見出し。柱想起モードの未読時フォールバックとして使用する。
 const SECTION_HEADINGS = {
@@ -2652,7 +2679,7 @@ function renderCard() {
   hcs.forEach(x => { hOk += (x.correct || 0); hTot += (x.total || 0); });
   const hRate = hTot ? Math.round(hOk / hTot * 100) : null;
   const hTrail = taxHeadingTrail(c.question, c.heading);
-  $('qHeading').innerHTML = esc(hTrail.label) + (hRate == null ? '' :
+  $('qHeading').innerHTML = esc(displayHeadingLabel(hTrail.label)) + (hRate == null ? '' :
     ` <b class="${hRate >= 90 ? 'text-emerald-500' : hRate >= 70 ? 'text-amber-500' : 'text-rose-500'}">見出し${hRate}%</b><span class="opacity-70">(${hTot}回)</span>`);
   $('wrongBadge').classList.toggle('hidden', !wrongMap[c.id]);
   updateWeakToggle();
@@ -2674,11 +2701,10 @@ function renderCard() {
     }
     // 見出し内の穴では、文脈ハイライトを見出しspanの内側から開始する。
     // 装飾タグとの交差を防ぎ、穴より後ろも同じ見出しスタイルに保つ。
-    for (let level = 0; level <= 5; level++) {
-      const open = `‹‹TH${level}››`, close = `‹‹/TH${level}››`;
+    for (const tag of ['TC', ...Array.from({length:6}, (_,i) => 'TH'+i), ...Array.from({length:5}, (_,i) => 'TM'+(i+1))]) {
+      const open = `‹‹${tag}››`, close = `‹‹/${tag}››`;
       const oi = raw.lastIndexOf(open, hi);
-      const ci = raw.indexOf(close, hi);
-      if (oi >= 0 && ci > hi) st = Math.max(st, oi + open.length);
+      if (oi >= 0 && raw.lastIndexOf(close, hi) < oi && raw.indexOf(close, hi) > hi) st = Math.max(st, oi + open.length);
     }
     raw = raw.slice(0, st) + '‹‹CL››' + raw.slice(st, hi + 3) + '‹‹/CL››' + raw.slice(hi + 3);
   }
@@ -2687,6 +2713,9 @@ function renderCard() {
   $('qText').innerHTML = esc(raw)
     .replace(/‹‹TH([0-5])››/g, (m, level) => `<span class="tax-head-${level}">`)
     .replace(/‹‹\/TH[0-5]››/g, '</span>')
+    .replace(/‹‹TM([1-5])››/g, (m, level) => `<span class="tax-marker-${level}">`)
+    .replace(/‹‹\/TM[1-5]››/g, '</span>')
+    .split('‹‹TC››').join('<span class="tax-cite">').split('‹‹/TC››').join('</span>')
     .split('‹‹CL››').join('<span class="clause">').split('‹‹/CL››').join('</span>')
     .replace(/〔_〕/g, `<span class="${curCls} blink">〔？〕</span>`)
     .replace(/〔●(\d+)〕/g, (m, n) => {
@@ -4438,7 +4467,7 @@ function pillarAppendItem(it, idx) {
   const rcls = rate == null ? '' : rate >= 90 ? 'text-emerald-500' : rate >= 70 ? 'text-amber-500' : 'text-rose-500';
   li.innerHTML =
     `<div class="flex gap-2 items-start">` +
-      `<span class="${isSub ? 'text-slate-400' : 'text-teal-600 dark:text-teal-400'} shrink-0">${mark}</span>` +
+      `<span class="${isSub ? 'text-slate-400' : 'text-teal-600 dark:text-teal-400'} shrink-0">${esc(displayHeadingLabel(mark))}</span>` +
       `<span class="flex-1">${esc(it.name)}${it.star ? `<span class="text-amber-500 ml-1 text-[12px]">${it.star}</span>` : ''}</span>` +
       (rate == null ? '' : `<span class="text-[10px] ${rcls} shrink-0 font-bold">${rate}%</span>`) +
       `<span class="pjudge text-[13px] shrink-0 w-3.5 text-center"></span>` +
