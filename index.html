@@ -363,7 +363,7 @@
 
 <script>
 'use strict';
-const APP_VER = 'v72';  // 画面・機能の更新ごとに上げる
+const APP_VER = 'v73';  // 画面・機能の更新ごとに上げる
 const CONTENT_REVISION = '2026-10-05-added-hole-marker-fix';
 const RANGE_CONTENT_REVISION = '2026-10-05-theory-tools13';
 const SUBJECT = 'shohizei';
@@ -534,10 +534,58 @@ function toast(message, color = 'bg-teal-600') {
   toastTimer = setTimeout(() => el.classList.add('hidden'), 2600);
 }
 // 所得税法版と同一オリジンでも、学習履歴・設定を共有しない。
+const storagePrefix = SUBJECT + ':';
+// 容量不足でも起動を継続し、回答履歴・設定は削除しない。
+const storageMemory = new Map();
+let storageWarningPending = false;
+function showStorageWarning() {
+  if (document.getElementById('storageWarning')) return;
+  const notice = document.createElement('div');
+  notice.id = 'storageWarning';
+  notice.className = 'fixed bottom-20 left-3 right-3 z-50 rounded-xl bg-amber-100 text-amber-950 p-3 text-xs shadow-lg';
+  notice.textContent = '端末に保存できません。今回の変更は再読み込みで失われる場合があります。設定からキャッシュを削除してください。';
+  document.body.appendChild(notice);
+}
 const appStorage = {
-  getItem: key => window.localStorage.getItem(SUBJECT + ':' + key),
-  setItem: (key, value) => window.localStorage.setItem(SUBJECT + ':' + key, value),
-  removeItem: key => window.localStorage.removeItem(SUBJECT + ':' + key),
+  getItem(key) {
+    if (storageMemory.has(key)) return storageMemory.get(key);
+    try { return window.localStorage.getItem(storagePrefix + key); }
+    catch (e) { return null; }
+  },
+  setItem(key, value) {
+    const text = String(value);
+    try {
+      window.localStorage.setItem(storagePrefix + key, text);
+      storageMemory.delete(key);
+      return true;
+    } catch (e) {
+      // 同科目の再取得可能なキャッシュだけを解放。他科目・回答履歴は保持する。
+      for (const cached of ['quizState', 'fullStats', 'answerCloud']) {
+        if (cached === key) continue;
+        try {
+          const old = window.localStorage.getItem(storagePrefix + cached);
+          if (old !== null) storageMemory.set(cached, old);
+          window.localStorage.removeItem(storagePrefix + cached);
+        } catch (ignored) {}
+      }
+      try {
+        window.localStorage.setItem(storagePrefix + key, text);
+        storageMemory.delete(key);
+        return true;
+      } catch (retryError) {
+        storageMemory.set(key, text);
+        if (!storageWarningPending) {
+          storageWarningPending = true;
+          setTimeout(showStorageWarning, 0);
+        }
+        return false;
+      }
+    }
+  },
+  removeItem(key) {
+    storageMemory.delete(key);
+    try { window.localStorage.removeItem(storagePrefix + key); } catch (e) {}
+  },
 };
 
 function storedJSON(key, fallback) {
