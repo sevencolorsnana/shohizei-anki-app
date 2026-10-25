@@ -367,7 +367,7 @@
 
 <script>
 'use strict';
-const APP_VER = 'v79';  // 画面・機能の更新ごとに上げる
+const APP_VER = 'v80';  // 画面・機能の更新ごとに上げる
 const CONTENT_REVISION = '2026-10-25-durable-hole-merge';
 const RANGE_CONTENT_REVISION = '2026-10-24-ohara2026-52';
 const SUBJECT = 'shohizei-ohara2026';
@@ -441,18 +441,25 @@ function taxHeadingLine(line) {
 function taxHeadingText(line, info) {
   if (!info) return String(line || '').trim();
   return (info.indent + info.mark + String(line).slice(info.prefix.length))
-    .trim().replace(/〔_〕|〔●\d+〕/g, '〔●〕').replace(/[☆★]+$/g, '').trim();
+    .trim().replace(/〔_〕|〔●\d+〕/g, '〔●〕').trim();
 }
 function taxHeadingTrail(question, outerHeading) {
   const source = String(question || '');
   const holeAt = source.indexOf('〔_〕');
   const beforeHole = holeAt < 0 ? source : source.slice(0, holeAt);
   const levels = [];
+  let precedingItem = null;
   for (const line of beforeHole.split(/\r?\n/)) {
     const info = taxHeadingLine(line);
-    if (!info) continue;
+    if (!info) {
+      const citationStars = line.match(/^\s*[（(][^）)\n]*(?:法|令|通|規|則)[^）)\n]*[）)]\s*([★☆]+)\s*$/);
+      if (precedingItem && citationStars && !/[★☆]$/.test(precedingItem.text)) precedingItem.text += ' ' + citationStars[1];
+      precedingItem = null;
+      continue;
+    }
     levels[info.level] = { mark: info.mark, text: taxHeadingText(line, info) };
     levels.length = info.level + 1;
+    precedingItem = info.level === 1 ? levels[1] : null;
   }
   const innerPath = levels.slice(1).filter(Boolean);
   const top = taxTopHeading(outerHeading);
