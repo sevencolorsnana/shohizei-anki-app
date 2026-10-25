@@ -367,8 +367,8 @@
 
 <script>
 'use strict';
-const APP_VER = 'v78';  // 画面・機能の更新ごとに上げる
-const CONTENT_REVISION = '2026-10-25-studying-amendment-booklet';
+const APP_VER = 'v79';  // 画面・機能の更新ごとに上げる
+const CONTENT_REVISION = '2026-10-25-durable-hole-merge';
 const RANGE_CONTENT_REVISION = '2026-10-24-ohara2026-52';
 const SUBJECT = 'shohizei-ohara2026';
 // 学習データの互換性が壊れる場合だけ上げる。通常のAPP_VER更新では変更しない。
@@ -2760,8 +2760,75 @@ async function clearCache() {
   loadCards(true);
 }
 
+// Persist the entire merge before background writes. Replay is idempotent and
+// startup must finish it before accepting a cached or fresh question queue.
+let holeMutationFlush = null;
+function holeRichText(value) {
+  const chunks = [];
+  for (let i=0; i<value.length; i+=1800) chunks.push({text:{content:value.slice(i,i+1800)}});
+  return chunks;
+}
+function pendingHoleMutations() {
+  const jobs = JSON.parse(appStorage.getItem('pendingHoleMutations') || '[]');
+  if (!Array.isArray(jobs)) throw new Error('穴の同期記録が不正です');
+  return jobs;
+}
+function persistHoleMutations(jobs) {
+  const value = JSON.stringify(jobs);
+  const saved = appStorage.setItem('pendingHoleMutations', value);
+  if (!saved || window.localStorage.getItem(storagePrefix + 'pendingHoleMutations') !== value) throw new Error('穴の同期記録を端末へ保存できません');
+}
+function enqueueHoleMutations(jobs) {
+  persistHoleMutations(pendingHoleMutations().concat(jobs));
+}
+async function flushHoleMutations() {
+  if (holeMutationFlush) return holeMutationFlush;
+  holeMutationFlush = (async () => {
+    while (pendingHoleMutations().length) {
+      const job = pendingHoleMutations()[0];
+      await notion(job.path, job.body, 'PATCH');
+      const jobs = pendingHoleMutations();
+      jobs.shift(); persistHoleMutations(jobs);
+    }
+  })();
+  try { await holeMutationFlush; } finally { holeMutationFlush = null; }
+}
+function removeMergedCards(pageIds) {
+  const removed = new Set(pageIds);
+  const prune = (list, index) => ({
+    list: list.filter(c => !removed.has(c.pageId)),
+    index: list.slice(0, index).filter(c => !removed.has(c.pageId)).length,
+  });
+  baseCards = baseCards.filter(c => !removed.has(c.pageId));
+  const active = prune(cards, queueIdx); cards = active.list; queueIdx = active.index;
+  wrongCards = wrongCards.filter(c => !removed.has(c.pageId));
+  if (scopedSaved && Array.isArray(scopedSaved.cards)) {
+    const main = prune(scopedSaved.cards, scopedSaved.queueIdx);
+    scopedSaved.cards = main.list; scopedSaved.queueIdx = main.index;
+  }
+  // Numeric undo indices no longer refer to the same cards after a merge.
+  undoStack = []; updateUndoBtn();
+}
+function addMergedCardToSavedQueue(card) {
+  if (!scopedSaved || !Array.isArray(scopedSaved.cards)) return;
+  if (!scopedSaved.cards.some(c => c.section === card.section)) return;
+  const at = Math.min(scopedSaved.queueIdx, scopedSaved.cards.length);
+  scopedSaved.cards.splice(at, 0, card);
+}
+
 // ── データ取得 ──
 async function loadCards(force) {
+  try {
+    if (pendingHoleMutations().length) {
+      $('loadingMsg').textContent = '穴の統合を同期中…';
+      await flushHoleMutations();
+      appStorage.removeItem('quizState'); force = true;
+    }
+  } catch (e) {
+    $('loadingBox').classList.remove('hidden');
+    $('loadingMsg').textContent = '⚠ 穴の同期が未完了です。再取得で再試行してください: ' + e.message;
+    $('loadBtn').classList.remove('hidden'); return;
+  }
   if (!force && loadState()) {
     // キャッシュから復元
     $('loadingBox').classList.add('hidden');
@@ -4083,20 +4150,24 @@ async function applyHoleSelection() {
         '題番号': { rich_text: [{ text: { content: sec } }] },
         '題名': { rich_text: [{ text: { content: (SECTION_TITLES[sec] || '').slice(0, 500) } }] },
         '大見出し': { rich_text: [{ text: { content: heading.slice(0, 500) } }] },
-        '問題文': { rich_text: [{ text: { content: qNew.slice(0, 2000) } }] },
-        '正解': { rich_text: [{ text: { content: newAnswer.slice(0, 500) } }] },
+        '問題文': { rich_text: holeRichText(qNew) },
+        '正解': { rich_text: holeRichText(newAnswer) },
         '穴番号': { number: newNum }, '重要度': { select: { name: '★' } },
         '次回出題日': { date: { start: todayStr() } }, '間隔_日数': { number: 1 },
         '難易度係数': { number: 2.5 }, '正答回数': { number: 0 }, '出題回数': { number: 0 },
       },
     });
     const activeId = (cards[queueIdx] || {}).id || null;
-    // ローカルを即時更新してUIを反映（残り穴のNotion更新は背景で実行）
-    for (const h of absorbed) {
-      baseCards = baseCards.filter(x => x.pageId !== h.pageId);
-      const ci = cards.findIndex(x => x.pageId === h.pageId); if (ci >= 0) cards.splice(ci, 1);
-      const wc = wrongCards.findIndex(x => x.pageId === h.pageId); if (wc >= 0) wrongCards.splice(wc, 1);
-    }
+    // Archive absorbed holes first, then synchronize every surviving template.
+    // Persist before changing queues so reload/network failure cannot lose work.
+    const jobs = absorbed.filter(h => h.pageId && isCurrentHoleRef(h)).map(h => ({
+      path:'/v1/pages/' + h.pageId, body:{archived:true}
+    })).concat(keep.filter(h => h.pageId && isCurrentHoleRef(h)).map(h => ({
+      path:'/v1/pages/' + h.pageId,
+      body:{properties:{'問題文':{rich_text:holeRichText(normalizeQuestionLineBreaks(T.replace(`〔●${h.num}〕`, '〔_〕')))}}}
+    })));
+    enqueueHoleMutations(jobs);
+    removeMergedCards(absorbed.map(h => h.pageId));
     const newCard = {
       pageId: res.id, id, section: sec, title: SECTION_TITLES[sec] || '', heading,
       question: qNew, answer: newAnswer, holeNum: newNum, rank: '★',
@@ -4104,6 +4175,7 @@ async function applyHoleSelection() {
       subject: SUBJECT, sourceDb: HOLE_DB_ID, sourceSchema: CACHE_SCHEMA,
     };
     baseCards.push(newCard);
+    addMergedCardToSavedQueue(newCard);
     applyHeadingTemplateLocally(sec, heading, T, absorbed.map(h => h.pageId));
     const removedIds = absorbed.map(h => (_holeSel.byNum[h.num] || {}).id).filter(Boolean);
     const focusId = absorbed.some(h => (_holeSel.byNum[h.num] || {}).id === activeId) ? newCard.id : activeId;
@@ -4114,18 +4186,8 @@ async function applyHoleSelection() {
     // モーダルは閉じず、最新状態で再描画して連続追加できるようにする
     buildHoleSel(sec, heading);
     toast(absorbed.length ? `✓ ${absorbed.length}個の穴を統合（続けて選択可）` : '✓ 穴を追加（続けて選択可）', 'bg-emerald-600');
-    // 背景でNotionの残り更新を「順番待ち」で実行（連続追加でも後の更新が必ず最後に確定）
-    queueBgSync(async () => {
-      for (const h of keep) {
-        if (!h.pageId || !isCurrentHoleRef(h)) continue;
-        const q = normalizeQuestionLineBreaks(T.replace(`〔●${h.num}〕`, '〔_〕'));
-        await notion('/v1/pages/' + h.pageId, { properties: { '問題文': { rich_text: [{ text: { content: q.slice(0, 2000) } }] } } }, 'PATCH');
-      }
-      for (const h of absorbed) {
-        if (!h.pageId || !isCurrentHoleRef(h)) continue;
-        await notion('/v1/pages/' + h.pageId, { archived: true }, 'PATCH');
-      }
-    });
+    $('holeSelMsg').textContent = '端末に反映済み・Notionへ同期中…（中断しても次回再開）';
+    queueBgSync(() => flushHoleMutations());
   } catch (e) {
     $('holeSelMsg').textContent = '⚠ ' + e.message;
   }
