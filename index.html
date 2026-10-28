@@ -113,6 +113,8 @@
       </div>
     </div>
 
+    <section id="headingChoicePanel" aria-label="次回の出題見出し" class="hidden mt-3 mb-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3"></section>
+
     <!-- 題完了の選択パネル -->
     <div id="secDoneBox" class="hidden flex-1 flex-col items-center justify-center gap-4 text-center min-h-[50vh]">
       <div class="text-5xl pop">✅</div>
@@ -368,7 +370,7 @@
 
 <script type="text/plain" id="ankiAppSource">
 'use strict';
-const APP_VER = 'v81';  // 画面・機能の更新ごとに上げる
+const APP_VER = 'v82';  // 画面・機能の更新ごとに上げる
 const CONTENT_REVISION = '2026-10-25-durable-hole-merge';
 const RANGE_CONTENT_REVISION = '2026-10-24-ohara2026-52';
 const SUBJECT = 'shohizei-ohara2026';
@@ -2599,6 +2601,7 @@ async function loadWeakness(rate = WEAK_RATE) {
       msg.textContent = `弱点を分析中... ${res.length}件`;
     } while (cursor && ++page < 120);
     let all = res.map(mapHoleCard).filter(c => ALL_SECTIONS.includes(c.section));
+    rememberHeadingChoices(all,true);
     normalizeHeadingMarkerIds(all);
     const sel = selectedSections();
     if (sel) all = all.filter(c => sel.includes(c.section));
@@ -2624,7 +2627,7 @@ async function loadWeakness(rate = WEAK_RATE) {
     for (const c of weak) (bySec[c.section] = bySec[c.section] || []).push(c);
     cards = [];
     for (const s of Object.keys(bySec).sort(tidSort)) cards = cards.concat(orderSectionCards(bySec[s]));
-    baseCards = cards.slice(); normalizeHeadingTemplatesLocally(baseCards); clearSecTextCache(); mergeRank(baseCards);
+    baseCards = cards.slice(); normalizeHeadingTemplatesLocally(baseCards); clearSecTextCache(); mergeRank(baseCards); startHeadingChoiceSession();
     queueIdx = 0; wrongCards = []; sessionResults = {}; streak = 0;
     inWrongReview = false; showSecPanels = false; undoStack = []; updateUndoBtn();
     saveState();
@@ -2696,6 +2699,92 @@ function unpackEditionCards(bank) {
   });
 }
 
+// Per-subject, per-theory TOP-level heading preferences. Excluded headings
+// stay in baseCards so answers, edits, ranks and future re-selection are intact.
+function headingChoiceId(card) {
+  const label=String(card.heading||'');
+  const match=label.match(/^\s*(?:〔\s*([0-9０-９]+)\s*〕|([0-9０-９]+)[．.])/);
+  return match?'n:'+String(match[1]||match[2]).normalize('NFKC'):'t:'+label.trim();
+}
+function headingChoicePreferences() {
+  try {const value=JSON.parse(appStorage.getItem('headingChoicesV1')||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?Object.fromEntries(Object.entries(value).filter(([,v])=>Array.isArray(v)).map(([k,v])=>[k,v.filter(x=>typeof x==='string')])):{};}
+  catch(e){return {};}
+}
+function headingChoiceSignature() {
+  const pref=headingChoicePreferences(),normalized={};
+  for(const section of Object.keys(pref).sort()){
+    if(!Array.isArray(pref[section]))continue;
+    const excluded=[...new Set(pref[section].filter(x=>typeof x==='string'))].sort();
+    if(excluded.length)normalized[section]=excluded;
+  }
+  return JSON.stringify(normalized);
+}
+let activeHeadingChoiceSignature=headingChoiceSignature();
+let headingChoiceSection=appStorage.getItem('headingChoiceLastSectionV1')||'';
+function isHeadingSelected(card) {
+  const excluded=headingChoicePreferences()[card.section];
+  return !Array.isArray(excluded)||!excluded.includes(headingChoiceId(card));
+}
+function filterSelectedHeadings(list) {
+  const pref=headingChoicePreferences();
+  return list.filter(card=>!Array.isArray(pref[card.section])||!pref[card.section].includes(headingChoiceId(card)));
+}
+function headingChoiceCatalog() {
+  try {return JSON.parse(appStorage.getItem('headingChoiceCatalogV1')||'{}')||{};}catch(e){return {};}
+}
+function rememberHeadingChoices(list,replace=false) {
+  const catalog=headingChoiceCatalog(),fresh={};
+  for(const card of list){
+    const section=card.section,id=headingChoiceId(card);
+    (fresh[section]||(fresh[section]={}))[id]=String(card.heading||'本文');
+  }
+  for(const section of Object.keys(fresh))catalog[section]=replace?fresh[section]:Object.assign({},catalog[section]||{},fresh[section]);
+  const value=JSON.stringify(catalog);
+  if(appStorage.getItem('headingChoiceCatalogV1')!==value)appStorage.setItem('headingChoiceCatalogV1',value);
+  renderHeadingChoices(headingChoiceSection&&fresh[headingChoiceSection]?headingChoiceSection:(Object.keys(fresh)[0]||headingChoiceSection));
+}
+function startHeadingChoiceSession() {
+  rememberHeadingChoices(baseCards);
+  activeHeadingChoiceSignature=headingChoiceSignature();
+  cards=filterSelectedHeadings(cards);
+}
+function renderHeadingChoices(section) {
+  const panel=$('headingChoicePanel');if(!panel)return;
+  const catalog=headingChoiceCatalog();
+  const found=catalog[section]||{};
+  const entries=Object.entries(found).sort(([a],[b])=>{
+    if(a.startsWith('n:')&&b.startsWith('n:'))return +a.slice(2)-+b.slice(2);
+    return a.localeCompare(b,'ja');
+  });
+  panel.classList.toggle('hidden',!entries.length);if(!entries.length)return;
+  if(headingChoiceSection!==section){headingChoiceSection=section;appStorage.setItem('headingChoiceLastSectionV1',section);}
+  const excluded=headingChoicePreferences()[section]||[],count=entries.filter(([id])=>!excluded.includes(id)).length;
+  const encode=value=>encodeURIComponent(value).replace(/'/g,'%27');
+  const display=heading=>typeof headingDisplayText==='function'?displayHeadingLabel(headingDisplayText(heading,section)):heading;
+  panel.innerHTML=`<div class="flex items-center gap-2 flex-wrap"><h3 class="font-bold text-sm">次回の出題見出し（問題${esc(section)}）</h3><span class="text-xs text-slate-500">${count}/${entries.length}選択</span><button type="button" onclick="setAllHeadingChoices(true)" class="ml-auto px-2 py-1 text-xs underline">全選択</button><button type="button" onclick="setAllHeadingChoices(false)" class="px-2 py-1 text-xs underline">全解除</button></div>
+    <p class="text-[11px] text-slate-500 mt-1">チェックのある大見出しだけ出題します。変更は次回の再開・再取得・復習開始から反映し、今の出題は変えません。</p>
+    <div class="mt-2 space-y-1 max-h-44 overflow-y-auto">${entries.map(([id,label])=>`<label class="flex items-start gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-xs cursor-pointer"><input type="checkbox" ${excluded.includes(id)?'':'checked'} data-section="${encode(section)}" data-heading="${encode(id)}" onchange="toggleHeadingChoice(this)" class="mt-0.5 shrink-0"><span>${esc(display(label))}</span></label>`).join('')}</div>
+    <p id="headingChoiceSaveStatus" role="status" class="text-[11px] mt-1 text-slate-500">${!count?'この題は次回出題されません。再開するには見出しを選択してください。':'選択はこの端末・この科目に保存されます。新しい見出しは初期状態で選択されます。'}</p>`;
+}
+async function storeHeadingChoices(section,excluded) {
+  const pref=headingChoicePreferences();
+  if(excluded.length)pref[section]=[...new Set(excluded)];else delete pref[section];
+  const saved=appStorage.setItem('headingChoicesV1',JSON.stringify(pref));
+  renderHeadingChoices(section);
+  try {if(!saved)throw Error('端末保存に失敗しました');await appStorage.flush();}
+  catch(e){const status=$('headingChoiceSaveStatus');if(status)status.textContent='⚠ 選択の保存が未完了です。この画面を閉じず、端末保存を再試行してください。';}
+}
+async function toggleHeadingChoice(input) {
+  const section=decodeURIComponent(input.dataset.section),id=decodeURIComponent(input.dataset.heading);
+  const excluded=headingChoicePreferences()[section]||[];
+  await storeHeadingChoices(section,input.checked?excluded.filter(x=>x!==id):excluded.concat(id));
+}
+async function setAllHeadingChoices(checked) {
+  if(!headingChoiceSection)return;
+  const entries=headingChoiceCatalog()[headingChoiceSection]||{};
+  await storeHeadingChoices(headingChoiceSection,checked?[]:Object.keys(entries));
+}
+
 function saveState() {
   try {
     // スコープ復習中はメインキューの退避状態を保存（リロードで主キューに復帰）
@@ -2712,6 +2801,7 @@ function saveState() {
     appStorage.setItem('quizState', JSON.stringify({
       subject: SUBJECT, db: HOLE_DB_ID, answerDb: ANSWER_DB_ID, schema: CACHE_SCHEMA, stateMeta: STATE_META,
       date: todayStr(), range: appStorage.getItem('rangeSel') || 'null', contentRevision: CONTENT_REVISION,
+      headingChoiceSignature: activeHeadingChoiceSignature,
       cardIds: stateCards.map(c => c.id), queueIdx: main.queueIdx, cardBank: packEditionCards(stateBaseCards), sessionResults,
       wrongIds: wrongCards.map(c => c.id), streak,
     }));
@@ -2736,6 +2826,8 @@ function loadState() {
     }
     if (!s || s.date !== todayStr()) return false;
     if (s.range !== (appStorage.getItem('rangeSel') || 'null')) return false;
+    if ((s.headingChoiceSignature || '{}') !== headingChoiceSignature()) return false;
+    activeHeadingChoiceSignature=s.headingChoiceSignature || '{}';
     const hasCompactQueue = Array.isArray(s.cardIds);
     const savedBaseCards = s.cardBank ? unpackEditionCards(s.cardBank) : (s.baseCards && s.baseCards.length ? s.baseCards : (s.cards || []));
     const savedCards = s.cards || [];
@@ -2745,6 +2837,7 @@ function loadState() {
       return false;
     }
     baseCards = savedBaseCards;
+    rememberHeadingChoices(baseCards);
     normalizeHeadingTemplatesLocally(baseCards);
     // cards は baseCards と「同一オブジェクト」を参照させる（編集が出題キューにも反映されるように）
     mergeRank(baseCards);
@@ -2889,8 +2982,9 @@ async function loadCards(force) {
       : null;
     const results = await queryAll(fetchFilter, '問題を取得中...');
     let all = results.map(mapHoleCard).filter(c => ALL_SECTIONS.includes(c.section));
+    rememberHeadingChoices(all,true);
     const targetSections = (sel ? sel.slice() : [...new Set(all
-      .filter(c => !c.nextReview || c.nextReview <= todayStr())
+      .filter(c => isHeadingSelected(c) && (!c.nextReview || c.nextReview <= todayStr()))
       .map(c => c.section))])
       .filter(section => ALL_SECTIONS.includes(section));
     if (targetSections.length === 0) {
@@ -2928,7 +3022,7 @@ async function loadCards(force) {
     for (const s of secs) {
       cards = cards.concat(orderSectionCards(bySec[s]));
     }
-    baseCards = cards.slice(); normalizeHeadingTemplatesLocally(baseCards); clearSecTextCache(); mergeRank(baseCards);
+    baseCards = cards.slice(); normalizeHeadingTemplatesLocally(baseCards); clearSecTextCache(); mergeRank(baseCards); startHeadingChoiceSession();
     queueIdx = 0; wrongCards = []; sessionResults = {}; streak = 0;
     scoped = false; inWrongReview = false; showSecPanels = true;
     undoStack = []; updateUndoBtn();
@@ -3076,6 +3170,7 @@ function renderCard() {
   removeAnsPop();
   const c = cards[queueIdx];
   if (!c) { showDone(); return; }
+  renderHeadingChoices(c.section);
   $('qSection').textContent = '問題' + c.section;
   $('qRank').innerHTML = rankBadge(c.section, 'text-[11px]');
   $('qTitle').textContent = c.title;
@@ -3469,6 +3564,7 @@ function continueNextSection() {
 
 // ── スコープ復習（練習のみ・Notionへは書き込まない） ──
 function startScoped(list, onDone, label) {
+  list=filterSelectedHeadings(list || []);
   if (!list || list.length === 0) { toast('対象がありません', 'bg-slate-600'); return; }
   scopedSaved = { cards, queueIdx };
   scopedReturn = onDone;
@@ -3832,7 +3928,8 @@ function showDone() {
 }
 
 function startWrongReview() {
-  const list = baseCards.filter(c => wrongMap[c.id]);
+  const list = filterSelectedHeadings(baseCards.filter(c => wrongMap[c.id]));
+  activeHeadingChoiceSignature=headingChoiceSignature();
   if (list.length === 0) { toast('不正解はありません 👏', 'bg-emerald-600'); return; }
   inWrongReview = true; scoped = false; showSecPanels = false;
   // 誤答だけのキューに切り替えても、全カードの母集団は失わない。
@@ -3851,7 +3948,8 @@ function startWrongReview() {
 function reviewAllToday() {
   if (baseCards.length === 0) { toast('対象がありません', 'bg-slate-600'); return; }
   inWrongReview = true; scoped = false; showSecPanels = true;
-  cards = baseCards.slice(); queueIdx = 0;
+  cards = filterSelectedHeadings(baseCards.slice()); queueIdx = 0;
+  activeHeadingChoiceSignature=headingChoiceSignature();
   sessionResults = {};
   undoStack = []; updateUndoBtn();
   saveState();
